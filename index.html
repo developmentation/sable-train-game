@@ -144,14 +144,25 @@ h1.big .sub{display:block;font-size:.44em;letter-spacing:.06em;margin-top:.28em;
 #loadTxt{margin-top:10px;font-size:13px;letter-spacing:.16em;text-transform:uppercase;
   color:var(--ink);opacity:.6;min-height:16px;font-weight:600}
 
-/* the title-screen locomotive, drawn in SVG, wheels turning */
+/* The title-screen locomotive, drawn in SVG. It faces left — the lamp, buffer
+   beam and chimney are all at the low-x end and the coach trails behind it — so
+   the wheels have to turn anticlockwise and the exhaust has to drift back to
+   the right. Turned the other way a wheel's contact patch skids along the rail
+   at twice the speed of the train, which is exactly as wrong as it looks. */
 #titleLoco{width:min(440px,82vw);margin:6px auto -6px;display:block;
   filter:drop-shadow(0 16px 22px rgba(34,48,63,.35))}
-.spin{transform-origin:center;animation:roll 1.6s linear infinite}
-@keyframes roll{to{transform:rotate(360deg)}}
-.puff{animation:puff 3s ease-out infinite;transform-origin:center}
-@keyframes puff{0%{opacity:0;transform:translate(0,0) scale(.4)}
-  25%{opacity:.85}100%{opacity:0;transform:translate(-26px,-56px) scale(1.6)}}
+/* transform-box matters enormously here. Inside an SVG the default reference
+   box for transform-origin is the *viewBox*, not the element — so "center"
+   means the middle of the whole drawing, and any scale() drags the thing being
+   scaled towards or away from that point. Left at the default, the exhaust
+   started life beside the cab and slid leftwards across the boiler as it grew,
+   and the wheels rotated about a point forty units above their own axles.
+   fill-box makes the origin mean what it says: this element's own box. */
+.spin{transform-box:fill-box;transform-origin:center;animation:roll 1.6s linear infinite}
+@keyframes roll{to{transform:rotate(-360deg)}}
+.puff{animation:puff 3s ease-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes puff{0%{opacity:0;transform:translate(0,0) scale(.35)}
+  16%{opacity:.9}70%{opacity:.55}100%{opacity:0;transform:translate(12px,-46px) scale(1.55)}}
 
 /*──────────────────────────────── depot ───────────────────────────────────*/
 #depot{justify-content:flex-start;gap:0}
@@ -366,6 +377,19 @@ h1.big .sub{display:block;font-size:.44em;letter-spacing:.06em;margin-top:.28em;
 /* centre well: switch lever + big soft buttons */
 .well{flex:1 1 auto;display:flex;align-items:center;justify-content:center;gap:12px;min-width:0}
 
+/* Forward and back. Two positions, because a lever with three is one too many
+   for a five-year-old and neutral is what the power lever is for. */
+.dirbox{display:flex;flex-direction:column;gap:5px;padding:5px;border-radius:16px;flex:0 0 auto;
+  background:linear-gradient(180deg,rgba(38,26,18,.55),rgba(22,15,10,.62));
+  box-shadow:inset 0 2px 7px rgba(0,0,0,.55),0 1px 0 rgba(255,236,200,.16)}
+.dirbtn{width:var(--tap);height:calc(var(--tap)*.62);min-height:0;border-radius:11px;
+  display:grid;place-items:center;color:#5A4227;
+  background:linear-gradient(180deg,#E7CE9C,#C9A870);box-shadow:0 3px 0 #8E6F42;
+  transition:.13s}
+.dirbtn svg{width:24px;height:24px}
+.dirbtn[aria-pressed="true"]{background:linear-gradient(180deg,#9BD97C,#63A845);color:#22381A;
+  box-shadow:0 3px 0 #3D6A33,0 0 12px rgba(126,224,90,.6)}
+.dirbtn:active{transform:translateY(3px);box-shadow:0 0 0 #8E6F42}
 .switchbox{
   display:flex;align-items:center;gap:8px;padding:6px 11px;border-radius:var(--r-lg);
   background:rgba(20,28,38,.5);box-shadow:inset 0 2px 8px rgba(0,0,0,.45),0 1px 0 rgba(255,236,200,.2);
@@ -422,6 +446,10 @@ h1.big .sub{display:block;font-size:.44em;letter-spacing:.06em;margin-top:.28em;
   border:2px dashed #D9C79F;align-items:center}
 .grp .dot{width:22px;height:22px;flex:0 0 auto}
 .answers{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.answers.words{grid-template-columns:repeat(3,1fr)}
+.answers.words .ans{font-size:clamp(17px,3.4vw,25px);letter-spacing:0;padding:0 8px;
+  line-height:1.15;word-break:break-word;hyphens:auto}
+.quiz .q.wordy{font-size:clamp(17px,3.2vw,27px);line-height:1.25;letter-spacing:0}
 .ans{
   min-height:74px;border-radius:var(--r-md);font-size:clamp(26px,6vw,38px);font-weight:700;
   background:linear-gradient(180deg,#fff,#F1E6CE);color:var(--ink);border:3px solid #E2D3B4;
@@ -471,11 +499,26 @@ h1.big .sub{display:block;font-size:.44em;letter-spacing:.06em;margin-top:.28em;
 
 /*──────────────────────────────── settings ────────────────────────────────*/
 #settings{z-index:36;background:rgba(34,48,63,.62);backdrop-filter:blur(5px)}
-#settings .card{width:min(480px,92vw);padding:22px}
+/* The panel has grown past what fits on a short screen, so it scrolls. The card
+   is capped against the viewport rather than given a fixed height, and the
+   header and footer stay put while the settings themselves move. */
+#settings .card{width:min(480px,92vw);padding:20px 22px;
+  max-height:calc(100dvh - 36px);display:flex;flex-direction:column;min-height:0}
+#settings h2{flex:0 0 auto}
+#settings .setlist{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;padding-right:4px;margin-right:-4px}
+#settings .setfoot{flex:0 0 auto;padding-top:14px;border-top:2px solid #EFE2C6;
+  display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap}
+/* a hint that there is more below, which fades out at the end of the scroll */
+#settings .setlist{scrollbar-width:thin}
 #settings h2{font-size:26px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:10px}
-.setrow{display:flex;align-items:center;gap:14px;padding:12px 0;border-top:2px solid #EFE2C6}
+/* Four seasons is one option more than fits beside a label. Rather than pick a
+   breakpoint, let the row wrap: the control drops onto its own full-width line
+   whenever there isn't room for it, at any width, in any language. */
+.setrow{display:flex;align-items:center;gap:10px 14px;padding:12px 0;
+  border-top:2px solid #EFE2C6;flex-wrap:wrap}
 .setrow:first-of-type{border-top:0}
-.setrow .t{flex:1 1 auto;font-weight:600}
+.setrow .t{flex:1 1 190px;min-width:0;font-weight:600}
 .setrow .t small{display:block;font-weight:500;opacity:.6;font-size:13px;margin-top:2px}
 .toggle{width:78px;height:44px;border-radius:var(--r-pill);background:#D8CAAE;position:relative;
   flex:0 0 auto;transition:background .2s;box-shadow:inset 0 2px 5px rgba(0,0,0,.18)}
@@ -483,9 +526,25 @@ h1.big .sub{display:block;font-size:.44em;letter-spacing:.06em;margin-top:.28em;
   background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.3);transition:transform .2s}
 .toggle[aria-pressed="true"]{background:var(--ok)}
 .toggle[aria-pressed="true"]::after{transform:translateX(34px)}
-.seg{display:flex;gap:6px;background:#EFE2C6;padding:5px;border-radius:var(--r-pill);flex:0 0 auto}
+.seg{display:flex;gap:6px;background:#EFE2C6;padding:5px;border-radius:var(--r-pill);
+  flex:0 1 auto;max-width:100%;justify-content:center}
+.setrow .seg{margin-left:auto}
 .seg button{padding:9px 15px;min-height:40px;border-radius:var(--r-pill);font-weight:700;font-size:15px;
-  color:var(--ink);opacity:.55}
+  color:var(--ink);opacity:.55;display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  white-space:nowrap;flex:1 1 auto;min-width:0}
+/* Four options never sit comfortably beside a label, so rather than let them
+   wrap into a lumpy two-row pill they take a line of their own and share it
+   evenly. It reads as a deliberate control instead of an overflow. */
+.seg.wide{flex:1 0 100%;margin-left:0;justify-content:stretch}
+.seg.wide button{flex:1 1 0;padding:9px 6px;font-size:14px}
+.seg.wide button svg{flex:0 0 auto}
+@media (max-width:430px){ .seg.wide button svg{display:none} }
+@media (max-width:520px){
+  .setrow{flex-direction:column;align-items:stretch}
+  .setrow .t{flex:0 0 auto}
+  .setrow .seg{margin-left:0}
+  .setrow .toggle{align-self:flex-end;margin-top:-46px}
+}
 .seg button[aria-pressed="true"]{background:#fff;opacity:1;box-shadow:0 2px 6px rgba(0,0,0,.14)}
 
 .keyhelp{margin-top:16px;font-size:13px;opacity:.62;line-height:1.7;font-weight:500}
@@ -502,7 +561,11 @@ h1.big .sub{display:block;font-size:.44em;letter-spacing:.06em;margin-top:.28em;
   :root{--desk-h:min(19vh,98px);--tap:50px}
   .ribbon{height:44px}
   .card{padding:12px}
-  .ans{min-height:60px}
+  .answers.words{grid-template-columns:repeat(3,1fr)}
+.answers.words .ans{font-size:clamp(17px,3.4vw,25px);letter-spacing:0;padding:0 8px;
+  line-height:1.15;word-break:break-word;hyphens:auto}
+.quiz .q.wordy{font-size:clamp(17px,3.2vw,27px);line-height:1.25;letter-spacing:0}
+.ans{min-height:60px}
   .groups{display:none}                 /* short screens: keep the answers reachable */
 }
 @media (max-width:560px){
@@ -540,6 +603,59 @@ h1.big .sub{display:block;font-size:.44em;letter-spacing:.06em;margin-top:.28em;
   </g>
 </symbol>
 
+<symbol id="i-fwd" viewBox="0 0 24 24">
+  <path d="M4 12h13" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M13 6.5 19.5 12 13 17.5z" fill="currentColor"/>
+</symbol>
+<symbol id="i-rev" viewBox="0 0 24 24">
+  <path d="M20 12H7" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M11 6.5 4.5 12 11 17.5z" fill="currentColor"/>
+</symbol>
+<symbol id="i-sheep" viewBox="0 0 24 24">
+  <ellipse cx="11" cy="12.6" rx="7" ry="5" fill="currentColor" opacity=".92"/>
+  <circle cx="17.6" cy="10.4" r="3.1" fill="currentColor"/>
+  <circle cx="16.6" cy="9.6" r=".8" fill="#fff"/>
+  <path d="M6 17.2v2.4M9.5 17.6v2M13 17.6v2M16.2 16.8v2.4"
+        stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+</symbol>
+<symbol id="i-sun" viewBox="0 0 24 24">
+  <circle cx="12" cy="12" r="4.6" fill="currentColor"/>
+  <path d="M12 1.6v3M12 19.4v3M1.6 12h3M19.4 12h3M4.8 4.8l2.1 2.1M17.1 17.1l2.1 2.1M19.2 4.8l-2.1 2.1M6.9 17.1l-2.1 2.1"
+        stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>
+</symbol>
+<symbol id="i-moon" viewBox="0 0 24 24">
+  <path d="M20 14.6A8.6 8.6 0 0 1 9.4 4a8.8 8.8 0 1 0 10.6 10.6z" fill="currentColor"/>
+  <circle cx="17.4" cy="5.2" r="1" fill="currentColor"/><circle cx="20.4" cy="8.6" r=".8" fill="currentColor"/>
+</symbol>
+<symbol id="i-spring" viewBox="0 0 24 24">
+  <path d="M12 21v-8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="12" cy="7.4" r="2.4" fill="currentColor"/>
+  <ellipse cx="7.6" cy="6.4" rx="2.6" ry="1.9" fill="currentColor" opacity=".72"/>
+  <ellipse cx="16.4" cy="6.4" rx="2.6" ry="1.9" fill="currentColor" opacity=".72"/>
+  <ellipse cx="12" cy="11.6" rx="1.9" ry="2.6" fill="currentColor" opacity=".72"/>
+</symbol>
+<symbol id="i-summer" viewBox="0 0 24 24">
+  <circle cx="12" cy="12" r="5" fill="currentColor"/>
+  <path d="M12 2v2.6M12 19.4V22M2 12h2.6M19.4 12H22M5.2 5.2l1.9 1.9M16.9 16.9l1.9 1.9M18.8 5.2l-1.9 1.9M7.1 16.9l-1.9 1.9"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+</symbol>
+<symbol id="i-autumn" viewBox="0 0 24 24">
+  <path d="M12 21c0-5 0-7 0-9" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+  <path d="M12 12C7 12 4 9 4 5c5 0 8 3 8 7zM12 12c5 0 8-3 8-7-5 0-8 3-8 7z" fill="currentColor"/>
+</symbol>
+<symbol id="i-winter" viewBox="0 0 24 24">
+  <path d="M12 2v20M3.3 7l17.4 10M20.7 7 3.3 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  <path d="M9 4.4 12 7l3-2.6M9 19.6 12 17l3 2.6" stroke="currentColor" stroke-width="1.8"
+        stroke-linecap="round" fill="none"/>
+</symbol>
+<symbol id="i-abc" viewBox="0 0 24 24">
+  <path d="M3.2 17 6 7l2.8 10M4.1 13.8h3.9" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M11.6 17V7h2.7a2.5 2.5 0 0 1 0 5h-2.7h3a2.5 2.5 0 0 1 0 5z" stroke="currentColor"
+        stroke-width="1.9" stroke-linejoin="round" fill="none"/>
+  <path d="M21.4 8.6a3.9 3.9 0 1 0 0 6.8" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" fill="none"/>
+</symbol>
 <symbol id="i-view-chase" viewBox="0 0 24 24">
   <rect x="2.5" y="12" width="9" height="6.5" rx="1.6" fill="currentColor"/>
   <circle cx="5" cy="19.4" r="1.5" fill="currentColor"/><circle cx="9" cy="19.4" r="1.5" fill="currentColor"/>
@@ -800,7 +916,11 @@ h1.big .sub{display:block;font-size:.44em;letter-spacing:.06em;margin-top:.28em;
     <p class="eyebrow">All aboard</p>
     <h1 class="big">Sable's<span class="sub">Train Adventure</span></h1>
 
-    <svg id="titleLoco" viewBox="0 0 300 116" aria-hidden="true">
+    <!-- The viewBox carries 40 units of sky above the engine. Without it the
+         exhaust climbs straight out of the top of the drawing and is clipped
+         a few frames after it leaves the chimney, which looks less like smoke
+         rising than like smoke appearing from nowhere beside the stack. -->
+    <svg id="titleLoco" viewBox="0 -40 300 156" aria-hidden="true">
       <g class="puff" style="animation-delay:0s"><circle cx="70" cy="26" r="10" fill="#FFF8EC"/></g>
       <g class="puff" style="animation-delay:1s"><circle cx="70" cy="26" r="8" fill="#F1E7DA"/></g>
       <g class="puff" style="animation-delay:2s"><circle cx="70" cy="26" r="11" fill="#FFF8EC"/></g>
@@ -826,17 +946,17 @@ h1.big .sub{display:block;font-size:.44em;letter-spacing:.06em;margin-top:.28em;
       <circle cx="98" cy="46" r="9" fill="#CBA44E"/>
       <circle cx="36" cy="66" r="9" fill="#FFEFBE"/>
       <rect x="20" y="84" width="16" height="14" rx="3" fill="#4A3628"/>
-      <g class="spin" style="transform-origin:64px 84px"><circle cx="64" cy="84" r="17" fill="#22303F"/>
+      <g class="spin"><circle cx="64" cy="84" r="17" fill="#22303F"/>
         <circle cx="64" cy="84" r="12" fill="#94403A"/><circle cx="64" cy="84" r="4" fill="#CBA44E"/>
         <rect x="62" y="70" width="4" height="28" fill="#CBA44E" opacity=".8"/>
         <rect x="50" y="82" width="28" height="4" fill="#CBA44E" opacity=".8"/></g>
-      <g class="spin" style="transform-origin:118px 84px"><circle cx="118" cy="84" r="17" fill="#22303F"/>
+      <g class="spin"><circle cx="118" cy="84" r="17" fill="#22303F"/>
         <circle cx="118" cy="84" r="12" fill="#94403A"/><circle cx="118" cy="84" r="4" fill="#CBA44E"/>
         <rect x="116" y="70" width="4" height="28" fill="#CBA44E" opacity=".8"/>
         <rect x="104" y="82" width="28" height="4" fill="#CBA44E" opacity=".8"/></g>
-      <g class="spin" style="transform-origin:206px 88px"><circle cx="206" cy="88" r="12" fill="#22303F"/>
+      <g class="spin"><circle cx="206" cy="88" r="12" fill="#22303F"/>
         <circle cx="206" cy="88" r="7" fill="#6E7583"/></g>
-      <g class="spin" style="transform-origin:262px 88px"><circle cx="262" cy="88" r="12" fill="#22303F"/>
+      <g class="spin"><circle cx="262" cy="88" r="12" fill="#22303F"/>
         <circle cx="262" cy="88" r="7" fill="#6E7583"/></g>
     </svg>
 
@@ -941,6 +1061,12 @@ h1.big .sub{display:block;font-size:.44em;letter-spacing:.06em;margin-top:.28em;
     </div>
 
     <div class="well">
+      <div class="dirbox" id="dirbox">
+        <button class="dirbtn" id="dirFwd" aria-label="Forward" aria-pressed="true">
+          <svg aria-hidden="true"><use href="#i-fwd"/></svg></button>
+        <button class="dirbtn" id="dirRev" aria-label="Set back" aria-pressed="false">
+          <svg aria-hidden="true"><use href="#i-rev"/></svg></button>
+      </div>
       <div class="switchbox" id="switchbox">
         <button class="swbtn" id="swLeft" aria-label="Take the left track" aria-pressed="false">
           <svg aria-hidden="true"><use href="#i-left"/></svg>
@@ -1013,6 +1139,7 @@ h1.big .sub{display:block;font-size:.44em;letter-spacing:.06em;margin-top:.28em;
   <div class="card">
     <h2><svg width="28" height="28" aria-hidden="true"><use href="#i-cog"/></svg>Settings</h2>
 
+    <div class="setlist">
     <div class="setrow">
       <div class="t">Sound<small>Whistles, chuffs and chimes</small></div>
       <button class="toggle" id="tgSound" aria-pressed="true" aria-label="Sound"></button>
@@ -1030,6 +1157,30 @@ h1.big .sub{display:block;font-size:.44em;letter-spacing:.06em;margin-top:.28em;
       </div>
     </div>
     <div class="setrow">
+      <div class="t">Puzzles<small>What the signals ask you</small></div>
+      <div class="seg" id="segPuz">
+        <button data-p="sums" aria-pressed="false">Numbers</button>
+        <button data-p="words" aria-pressed="false">Words</button>
+        <button data-p="both" aria-pressed="true">Both</button>
+      </div>
+    </div>
+    <div class="setrow">
+      <div class="t">Time of day<small>Turn on the lamps and count the stars</small></div>
+      <div class="seg" id="segTime">
+        <button data-n="0" aria-pressed="true"><svg width="17" height="17" aria-hidden="true"><use href="#i-sun"/></svg>Day</button>
+        <button data-n="1" aria-pressed="false"><svg width="17" height="17" aria-hidden="true"><use href="#i-moon"/></svg>Night</button>
+      </div>
+    </div>
+    <div class="setrow">
+      <div class="t">Season<small>The valley through the year</small></div>
+      <div class="seg wide" id="segSeason">
+        <button data-s="spring" aria-pressed="false"><svg width="17" height="17" aria-hidden="true"><use href="#i-spring"/></svg>Spring</button>
+        <button data-s="summer" aria-pressed="true"><svg width="17" height="17" aria-hidden="true"><use href="#i-summer"/></svg>Summer</button>
+        <button data-s="autumn" aria-pressed="false"><svg width="17" height="17" aria-hidden="true"><use href="#i-autumn"/></svg>Autumn</button>
+        <button data-s="winter" aria-pressed="false"><svg width="17" height="17" aria-hidden="true"><use href="#i-winter"/></svg>Winter</button>
+      </div>
+    </div>
+    <div class="setrow">
       <div class="t">Picture quality<small>Turn it down if the train is jerky</small></div>
       <div class="seg" id="segQual">
         <button data-q="0" aria-pressed="false">Low</button>
@@ -1038,14 +1189,16 @@ h1.big .sub{display:block;font-size:.44em;letter-spacing:.06em;margin-top:.28em;
       </div>
     </div>
 
+    </div><!-- /.setlist -->
+
     <div class="keyhelp">
       <svg width="18" height="18" style="vertical-align:-3px" aria-hidden="true"><use href="#i-keys"/></svg>
       &nbsp;<kbd>↑</kbd><kbd>↓</kbd> power &nbsp;·&nbsp; <kbd>←</kbd><kbd>→</kbd> pick a track
       &nbsp;·&nbsp; <kbd>space</kbd> whistle &nbsp;·&nbsp; <kbd>B</kbd> brake
-      &nbsp;·&nbsp; <kbd>C</kbd> camera &nbsp;·&nbsp; <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> answers
+      &nbsp;·&nbsp; <kbd>C</kbd> camera &nbsp;·&nbsp; <kbd>R</kbd> forward/back &nbsp;·&nbsp; <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> answers
     </div>
 
-    <div style="display:flex;gap:10px;justify-content:space-between;margin-top:20px;flex-wrap:wrap">
+    <div class="setfoot">
       <button id="btnWipe" class="chip" style="background:#F6DCD6;border-color:#E4B7AE">Start over</button>
       <button id="btnCloseSet" class="enamel small">Done</button>
     </div>
@@ -1296,6 +1449,43 @@ class Bus {
 
 /* Quality ladder. Every visual subsystem reads these and never exceeds them.
    Level 0 is what a five-year-old's hand-me-down tablet gets. */
+/*──────────────────── §0c  SEASON AND TIME OF DAY ───────────────────────────*/
+/* Both are world state rather than a render setting: the season changes what
+   colour the grass is baked, what the trees are tinted and how the sky reads,
+   and night changes the light, the fog and what is lit up. WORLD is mutable
+   and read by the bakes, so changing either means re-baking rather than
+   toggling a flag in a shader. */
+const SEASONS = {
+  spring: {
+    name: 'Spring', icon: 'i-spring',
+    grass: ['#7FB04E', '#93BE5E', '#5F8C3E'], soil: '#8A6B4B',
+    canopy: [1.02, 1.10, 0.86], sky: '#8CB8DA', fog: '#C9DCEA',
+    tuft: [1.04, 1.10, 0.88], snow: 0, blossom: 0.35,
+  },
+  summer: {
+    name: 'Summer', icon: 'i-summer',
+    grass: null, soil: null,                       // null = the valley's own palette
+    canopy: [1, 1, 1], sky: null, fog: null,
+    tuft: [1, 1, 1], snow: 0, blossom: 0,
+  },
+  autumn: {
+    name: 'Autumn', icon: 'i-autumn',
+    grass: ['#9A9A48', '#B3A652', '#7C7A3A'], soil: '#7E5B3C',
+    canopy: [1.30, 0.86, 0.48], sky: '#A9B9C6', fog: '#E0D6BE',
+    tuft: [1.22, 0.98, 0.62], snow: 0, blossom: 0,
+  },
+  winter: {
+    name: 'Winter', icon: 'i-winter',
+    grass: ['#C9CEC9', '#DCE2E1', '#A9B2B0'], soil: '#8E8880',
+    canopy: [0.78, 0.86, 0.92], sky: '#B6C6D4', fog: '#DDE6EC',
+    tuft: [0.86, 0.92, 0.96], snow: 0.82, blossom: 0,
+  },
+};
+const SEASON_ORDER = ['spring', 'summer', 'autumn', 'winter'];
+
+const WORLD = { season: 'summer', night: false };
+const season = () => SEASONS[WORLD.season] || SEASONS.summer;
+
 const QUALITY = [
   { id: 0, name: 'Low',  px: 0.72, shadow: 0,    trees: 420,  tufts: 0,    clouds: 9,  detail: 1, water: 0 },
   { id: 1, name: 'Mid',  px: 1.00, shadow: 1024, trees: 1100, tufts: 2600, clouds: 15, detail: 2, water: 1 },
@@ -1617,6 +1807,32 @@ class AudioSys {
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   }
 
+  /* A sheep. Two wobbling formants over a noisy buzz — not a real baa, but
+     unmistakably an animal rather than a machine, which is all it needs to be. */
+  bleat() {
+    if (!this.ready || !this.on) return;
+    const t = this.ac.currentTime;
+    const g = this.ac.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.16, t + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.62);
+    g.connect(this.bus);
+    for (const [f, amp] of [[420, 1], [880, 0.55], [1650, 0.22]]) {
+      const o = this.ac.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(f, t);
+      o.frequency.linearRampToValueAtTime(f * 0.90, t + 0.30);
+      o.frequency.linearRampToValueAtTime(f * 0.97, t + 0.58);
+      const lfo = this.ac.createOscillator(), lg = this.ac.createGain();
+      lfo.frequency.setValueAtTime(15, t); lg.gain.setValueAtTime(f * 0.035, t);
+      lfo.connect(lg); lg.connect(o.frequency); lfo.start(t); lfo.stop(t + 0.66);
+      const og = this.ac.createGain();
+      og.gain.setValueAtTime(amp * 0.5, t);
+      o.connect(og); og.connect(g);
+      o.start(t); o.stop(t + 0.66);
+    }
+  }
+
   clank() {
     if (!this.ready || !this.on) return;
     const t = this.ac.currentTime;
@@ -1771,8 +1987,21 @@ class Render {
     this.sun = sun;
 
     const hemi = new THREE.HemisphereLight(hex('ambSky'), hex('ambGround'), 0.74);
+    this.hemi = hemi;
+
+    /* The locomotive's headlamp. Built now and left at zero intensity, because
+       adding a light to a live scene makes three recompile every material in
+       it — at night we only turn it up. */
+    const lamp = new THREE.SpotLight(0xFFF0CC, 0.0, 190, 0.52, 0.55, 1.1);
+    lamp.castShadow = false;
+    lamp.position.set(0, 6, 0);
+    lamp.target.position.set(0, 0, 10);
+    this.scene.add(lamp); this.scene.add(lamp.target);
+    this.lamp = lamp;
     scene.add(hemi);
     this.hemi = hemi;
+
+
 
     this._applyShadowQuality(ctx.q);
     ctx.events.on('quality:change', ({ q }) => {
@@ -1831,14 +2060,14 @@ class Render {
 
     this.skyMat = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, depthTest: false, fog: false,
-      uniforms: { uSun: { value: this.sunDir.clone() }, uT: { value: 0 } },
+      uniforms: { uSun: { value: this.sunDir.clone() }, uT: { value: 0 }, uNight: { value: 0 } },
       vertexShader: `
         varying vec3 vD;
         void main(){ vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
       fragmentShader: `
         precision mediump float;
         varying vec3 vD;
-        uniform vec3 uSun; uniform float uT;
+        uniform vec3 uSun; uniform float uT; uniform float uNight;
 
         float h21(vec2 p){ p = fract(p*vec2(123.34,456.21)); p += dot(p,p+45.32); return fract(p.x*p.y); }
         float vn(vec2 p){
@@ -1883,6 +2112,31 @@ class Render {
             float ci = fbm(vec2(sp.x*0.7, sp.y*3.1)*2.4);
             ci = smoothstep(0.46,0.78,ci)*cd;
             col = mix(col, ${c('cloudTop')}, ci*0.34);
+          }
+          /* Night is mixed over the finished day sky rather than being a
+             separate shader: the same horizon glow and cloud banding still
+             read, just darker and cooler, and the stars come through where the
+             sky is clear. */
+          if (uNight > 0.001) {
+            vec3 nd = normalize(vD);
+            vec3 deep = mix(vec3(0.055,0.085,0.155), vec3(0.012,0.020,0.055),
+                            smoothstep(-0.05, 0.55, nd.y));
+            // a hash-based star field, thinned near the horizon
+            vec2 sc = floor(nd.xz / max(abs(nd.y) + 0.22, 0.06) * 190.0);
+            float h1 = fract(sin(dot(sc, vec2(12.9898, 78.233))) * 43758.5453);
+            float h2 = fract(sin(dot(sc, vec2(93.9898, 11.345))) * 24634.6345);
+            float star = smoothstep(0.9965, 1.0, h1) * (0.45 + 0.55 * h2);
+            star *= 0.55 + 0.45 * sin(uT * 1.7 + h2 * 40.0);      // a slow twinkle
+            star *= smoothstep(0.02, 0.30, nd.y);
+            // the moon, sitting opposite the sun
+            vec3 mdir = normalize(vec3(-uSun.x, abs(uSun.y) * 0.86 + 0.30, -uSun.z));
+            float md = dot(nd, mdir);
+            float disc = smoothstep(0.99936, 0.99972, md);
+            float halo = smoothstep(0.985, 1.0, md) * 0.28;
+            vec3 nightCol = deep + vec3(star)
+                          + vec3(0.95, 0.94, 0.86) * disc
+                          + vec3(0.42, 0.48, 0.62) * halo;
+            col = mix(col, nightCol, uNight);
           }
           gl_FragColor = vec4(toOutput(col), 1.0);
         }`,
@@ -1962,6 +2216,37 @@ class Render {
     }
   }
 
+  /* Day and night. Nothing is added or removed — the lights, the fog and the
+     sky uniform are all driven between two settings, because creating a light
+     at runtime forces every material in the scene to recompile. */
+  setNight(on) {
+    WORLD.night = !!on;
+    const n = WORLD.night ? 1 : 0;
+    this.nightAmount = n;
+    if (this.skyMat) this.skyMat.uniforms.uNight.value = n;
+    this.sun.color.copy(n ? new THREE.Color('#AFC4E8') : hex('sun'));
+    this.sun.intensity = n ? 0.30 : 1.05;
+    this.hemi.color.copy(n ? new THREE.Color('#38507A') : hex('ambSky'));
+    this.hemi.groundColor.copy(n ? new THREE.Color('#1B2233') : hex('ambGround'));
+    this.hemi.intensity = n ? 0.42 : 0.74;
+    const fogCol = n ? new THREE.Color('#1B2740') : (season().fog ? new THREE.Color(season().fog) : hex('fog'));
+    if (this.scene.fog) this.scene.fog.color.copy(fogCol);
+    this.renderer.setClearColor(fogCol, 1);
+    if (this.lamp) this.lamp.intensity = n ? 2.6 : 0.0;
+    this.ctx.events.emit('world:night', { night: WORLD.night });
+  }
+
+  /* Repaint for the season: the ground texture is re-baked by the world, this
+     part is the air. */
+  applySeason() {
+    const sea = season();
+    if (this.scene.fog) {
+      this.scene.fog.color.copy(WORLD.night ? new THREE.Color('#1B2740')
+        : (sea.fog ? new THREE.Color(sea.fog) : hex('fog')));
+      this.renderer.setClearColor(this.scene.fog.color, 1);
+    }
+  }
+
   /* Keep the shadow frustum on the train and the sky on the camera, then draw. */
   present(dt, ctx) {
     // the menus sit on painted backdrops, so the world behind them can idle
@@ -1972,6 +2257,17 @@ class Render {
     const cam = this.camera;
     this.sky.position.copy(cam.position);
     this.skyMat.uniforms.uT.value = ctx.time.elapsed;
+
+    // the headlamp rides on the engine and looks the way it is travelling
+    if (this.lamp && this.lamp.intensity > 0) {
+      const tr = ctx.has('train') ? ctx.get('train') : null;
+      if (tr) {
+        const f = tr.frontPos || tr.head, d = tr.headDir, sgn = tr.dir >= 0 ? 1 : -1;
+        this.lamp.position.set(f.x - d.x * 3.4 * sgn, f.y + 3.0, f.z - d.z * 3.4 * sgn);
+        this.lamp.target.position.set(f.x + d.x * 44 * sgn, f.y - 1.0, f.z + d.z * 44 * sgn);
+        this.lamp.target.updateMatrixWorld();
+      }
+    }
 
     if (this.sun.castShadow) {
       const t = ctx.has('train') ? ctx.get('train') : null;
@@ -3491,6 +3787,24 @@ class World {
     for (const k of ['gLit', 'gMid', 'gShade', 'gDeep', 'gDry', 'gPatchA', 'gPatchB',
                      'gPatchC', 'gPatchD', 'rock', 'rockShade', 'sandBank', 'soil',
                      'ballast', 'wShallow']) C[k] = hexRGB(P[k]);
+
+    /* The season repaints the ground rather than tinting it in a shader, so
+       that the field parcels, hedgerows, tracks and worn earth all shift
+       together and the hedge boundaries stay readable. */
+    const sea = season();
+    if (sea.grass) {
+      const g0 = hexRGB(sea.grass[0]), g1 = hexRGB(sea.grass[1]), g2c = hexRGB(sea.grass[2]);
+      const blend = (dst, src, t) => {
+        for (let q = 0; q < 3; q++) dst[q] = dst[q] + (src[q] - dst[q]) * t;
+      };
+      blend(C.gLit, g1, 0.86); blend(C.gMid, g0, 0.86); blend(C.gShade, g2c, 0.86);
+      blend(C.gDeep, g2c, 0.72); blend(C.gDry, g1, 0.55);
+      blend(C.gPatchA, g0, 0.72); blend(C.gPatchB, g1, 0.72);
+      blend(C.gPatchC, g2c, 0.72); blend(C.gPatchD, g0, 0.58);
+      if (sea.soil) blend(C.soil, hexRGB(sea.soil), 0.8);
+    }
+    const SNOW = sea.snow || 0;
+    const snowRGB = [244, 248, 252];
     const mixc = (a, b, t, out) => {
       out[0] = a[0] + (b[0] - a[0]) * t;
       out[1] = a[1] + (b[1] - a[1]) * t;
@@ -3785,6 +4099,17 @@ class World {
     this.group.add(river);
   }
 
+  /* Re-bake for a change of season. Only the ground texture actually depends
+     on it — the heights, the meshes and the water are all season-agnostic — so
+     this is one canvas repaint rather than a rebuild of the valley. */
+  applySeason() {
+    const old = this.groundTex;
+    this.groundTex = this._bakeGroundTexture();
+    this.terrainMat.map = this.groundTex;
+    this.terrainMat.needsUpdate = true;
+    if (old) old.dispose();
+  }
+
   update(dt, ctx) {
     this.waterMat.uniforms.uT.value = ctx.time.elapsed;
   }
@@ -3843,6 +4168,34 @@ class Props {
 
     ctx.events.on('quality:change', ({ q }) => this._applyQuality(q));
     this._applyQuality(ctx.q);
+  }
+
+  /* Re-tint the vegetation for a new season. The geometry never changes — only
+     the per-instance colours — so this is a few thousand writes rather than a
+     rebuild. */
+  applySeason() {
+    for (const im of this.treeMeshes) {
+      const list = im.userData.slots;
+      if (!list) continue;
+      const cn = season().canopy, bl = season().blossom;
+      for (let i = 0; i < list.length; i++) {
+        const t = list[i], tint = 0.82 + t.t * 0.36;
+        const b = bl > 0 && t.t > 1 - bl ? 1.18 : 1;
+        im.setColorAt(i, _c.setRGB(
+          tint * cn[0] * b,
+          tint * (1.02 - t.t * 0.08) * cn[1] * (b > 1 ? 0.92 : 1),
+          tint * (0.94 + t.t * 0.1) * cn[2] * (b > 1 ? 1.02 : 1)));
+      }
+      if (im.instanceColor) im.instanceColor.needsUpdate = true;
+    }
+    if (this.tufts && this.tufts.instanceColor) {
+      const tu = season().tuft, n = this.tufts.userData.max;
+      for (let i = 0; i < n; i++) {
+        const g2 = 0.78 + (i % 9) / 9 * 0.42;
+        this.tufts.setColorAt(i, _c.setRGB(g2 * tu[0], g2 * 1.03 * tu[1], g2 * 0.86 * tu[2]));
+      }
+      this.tufts.instanceColor.needsUpdate = true;
+    }
   }
 
   _applyQuality(q) {
@@ -3943,10 +4296,17 @@ class Props {
         sv.set(t.s, t.s * (0.85 + t.t * 0.4), t.s);
         im.setMatrixAt(i, m4.compose(pv, qt, sv));
         const tint = 0.82 + t.t * 0.36;
-        im.setColorAt(i, _c.setRGB(tint, tint * (1.02 - t.t * 0.08), tint * (0.94 + t.t * 0.1)));
+        const cn = season().canopy;
+        // a scatter of blossom-pale crowns in spring
+        const bl = season().blossom > 0 && t.t > 1 - season().blossom ? 1.18 : 1;
+        im.setColorAt(i, _c.setRGB(
+          tint * cn[0] * bl,
+          tint * (1.02 - t.t * 0.08) * cn[1] * (bl > 1 ? 0.92 : 1),
+          tint * (0.94 + t.t * 0.1) * cn[2] * (bl > 1 ? 1.02 : 1)));
       }
       if (im.instanceColor) im.instanceColor.needsUpdate = true;
       im.userData.max = list.length;
+      im.userData.slots = list;
       im.frustumCulled = false;
       this.group.add(im);
       this.treeMeshes.push(im);
@@ -4063,7 +4423,8 @@ class Props {
       pv.set(t.x, t.y, t.z); sv.set(t.s, t.s * r.range(0.8, 1.4), t.s);
       im.setMatrixAt(i, m4.compose(pv, qt, sv));
       const g2 = 0.78 + (i % 9) / 9 * 0.42;
-      im.setColorAt(i, _c.setRGB(g2, g2 * 1.03, g2 * 0.86));
+      const tu = season().tuft;
+      im.setColorAt(i, _c.setRGB(g2 * tu[0], g2 * 1.03 * tu[1], g2 * 0.86 * tu[2]));
     }
     if (im.instanceColor) im.instanceColor.needsUpdate = true;
     im.userData.max = list.length;
@@ -4826,7 +5187,7 @@ class Train {
     this.speed = 0;
     this.throttle = 0;
     this.braking = false;
-    this.reverse = false;
+    this.dir = 1;                  // +1 forward, -1 setting back
     this.dist = 0;                 // total distance run, for wheel phase
     this.head = new THREE.Vector3();
     this.headDir = new THREE.Vector3(0, 0, 1);
@@ -4847,7 +5208,7 @@ class Train {
     // trail: 1400 samples at ≥0.32 m gives 450 m of history, far more than the
     // longest train, and it is what lets the back wagons still be on the main
     // line while the engine is already round the curve of a branch
-    this.trailN = 1400;
+    this.trailN = 2600;
     this.trail = new Float32Array(this.trailN * 4);   // x,y,z,cumulative
     this.trailHead = 0;
     this.trailCount = 0;
@@ -4860,6 +5221,7 @@ class Train {
     this.resetTo(this.track.stations.town, 0);
 
     ctx.events.on('train:setThrottle', p => this.setThrottle(p.v));
+    ctx.events.on('train:direction', p => this.setDirection(p.dir));
     ctx.events.on('train:brake', p => { this.braking = p.on; if (p.on && this.speed > 3) this.audio.brake(this.speed / CFG.maxSpeed); });
   }
 
@@ -5124,10 +5486,11 @@ class Train {
     this.headGrade = 0;
     this.speed = speed;
     this.throttle = 0;
+    this.dir = 1;                  // a fresh start always faces forward
     this.branchSeg = this.seg === 'main' ? null : this.track.segs[this.seg];
     this.trailCount = 0; this.trailHead = 0;
     // prefill the trail backwards so the wagons are not stacked on the engine
-    const back = this.length + 20;
+    const back = this.length + 300;
     const N = Math.ceil(back / 0.4);
     const o = {};
     for (let i = N; i >= 0; i--) {
@@ -5163,7 +5526,7 @@ class Train {
   /* Advance the stored state by whatever fraction of a physics step the
      renderer is ahead by. Called once per frame, before anything is placed. */
   _syncFront(alpha) {
-    const ahead = this.speed * clamp(alpha, 0, 1) * (this.ctx ? this.ctx.time.fixed : 1 / 60);
+    const ahead = this.dir * this.speed * clamp(alpha, 0, 1) * (this.ctx ? this.ctx.time.fixed : 1 / 60);
     this.frontDist = this.dist + ahead;
     this.frontPos.set(this.head.x + this.headDir.x * ahead,
                       this.head.y + this.headGrade * ahead,
@@ -5199,6 +5562,27 @@ class Train {
       lerp(this.trail[i1 * 4 + 1], this.trail[i0 * 4 + 1], u),
       lerp(this.trail[i1 * 4 + 2], this.trail[i0 * 4 + 2], u));
     return out;
+  }
+
+  /* Setting back. The locomotive stays pointing the way it was — that is what
+     a real one does — and the train retraces the path it has already laid down
+     in the trail, which is why you can only reverse as far as you have come. */
+  setDirection(d) {
+    const nd = d < 0 ? -1 : 1;
+    if (nd === this.dir) return;
+    if (this.speed > 1.2) return;                 // no slamming it into reverse
+    this.dir = nd;
+    this.setThrottle(0);
+    this.ctx.events.emit('train:directionSet', { dir: nd });
+    this.audio.clank();
+  }
+
+  /* How far back the trail still goes — you cannot set back past where the
+     history runs out, which in practice means back to where you started. */
+  get reverseRoom() {
+    if (this.trailCount < 2) return 0;
+    const oldest = (this.trailHead - this.trailCount + this.trailN * 2) % this.trailN;
+    return Math.max(0, this.dist - this.trail[oldest * 4 + 3] - this.length - 3);
   }
 
   setThrottle(v) {
@@ -5241,13 +5625,30 @@ class Train {
        every frame and never pull away. */
     if (this.speed < 0.02 && (this.throttle === 0 || this.braking)) this.speed = 0;
 
-    const ds = this.speed * h;
+    let ds = this.speed * h;
+    if (this.dir < 0) {
+      // hard stop where the recorded path runs out, like hitting the buffers
+      const room = this.reverseRoom;
+      if (room <= 0.01) { this.speed = 0; ds = 0; }
+      else if (ds > room) ds = room;
+    }
     if (ds > 0) {
-      this.dist += ds;
+      this.dist += ds * this.dir;
       const before = this.s;
-      this.s += ds;
+      this.s += ds * this.dir;
 
-      if (this.seg === 'main') {
+      if (this.dir < 0) {
+        // going backwards: a branch simply runs out at its junction
+        if (this.seg !== 'main' && this.s < 0) {
+          const b = this.branchSeg;
+          this.seg = 'main'; this.branchSeg = null;
+          this.s = mod(b.s0 + this.s, this.track.mainLen);
+          this.audio.clank();
+          ctx.events.emit('train:merged', { branch: b });
+        } else if (this.seg === 'main') {
+          this.s = mod(this.s, this.track.mainLen);
+        }
+      } else if (this.seg === 'main') {
         const L = this.track.mainLen;
         const sN = this.s;
         for (const b of this.track.branches) {
@@ -5265,7 +5666,7 @@ class Train {
           }
         }
         if (this.seg === 'main') this.s = mod(this.s, L);
-      } else {
+      } else if (this.dir > 0) {
         const b = this.branchSeg;
         if (this.s >= b.len) {
           const over = this.s - b.len;
@@ -5281,16 +5682,16 @@ class Train {
       this.headDir.set(o.tx, 0, o.tz);
       this.headGrade = o.grade || 0;
       this.inTunnel = !!o.inTunnel;
-      this._pushTrail(this.head.x, this.head.y, this.head.z, this.dist, false);
+      if (this.dir > 0) this._pushTrail(this.head.x, this.head.y, this.head.z, this.dist, false);
 
       // ── junction lookahead ──
       this._scanJunction(ctx);
 
       // rail joints and chuffs are both distance-driven, not time-driven
-      this._sinceJoint += ds;
+      this._sinceJoint += Math.abs(ds);
       if (this._sinceJoint > 18.3) { this._sinceJoint = 0; ctx.events.emit('train:joint', {}); }
       const perChuff = (TAU * LOCO.wheel) / 4;
-      this._sinceChuff += ds;
+      this._sinceChuff += Math.abs(ds);
       if (this._sinceChuff >= perChuff) {
         this._sinceChuff -= perChuff;
         if (this.throttle > 0)
@@ -5298,7 +5699,7 @@ class Train {
       }
       // one puff every few metres, so the plume thins out as the train speeds
       // up instead of turning into fog
-      this._sincePuff = (this._sincePuff || 0) + ds;
+      this._sincePuff = (this._sincePuff || 0) + Math.abs(ds);
       const perPuff = 3.0 + this.speed * 0.16;
       if (this._sincePuff >= perPuff) {
         this._sincePuff = 0;
@@ -5355,6 +5756,21 @@ class Train {
     return true;
   }
 
+  /* How far round a wheel of this radius has turned.
+
+     A rotation about the vehicle's local X axis takes the bottom of the wheel
+     — the contact patch — towards −Z as the angle increases, and local +Z is
+     forward. So rolling forward without slipping means the angle *increases*
+     with distance travelled: θ = d / r. Negating it, as this used to, spins
+     every wheel on the train backwards while the coupling rods (which derive
+     their crank angle from −θ, and so were right all along) go the other way. */
+  wheelPhase(radius) { return this.frontDist / radius; }
+
+  /* The crank angle used by the rods. The pin starts at three o'clock, and a
+     point at local (0, 0, R) rotated by θ lands at (0, −R sinθ, R cosθ) — which
+     is what the −θ here is undoing, so that sin/cos can be used directly. */
+  rodAngle(side) { return -this.wheelPhase(LOCO.wheel) + (side > 0 ? 0 : Math.PI / 2); }
+
   /*── visuals ───────────────────────────────────────────────────────────*/
   update(dt, ctx) {
     this._syncFront(ctx.time.alpha);
@@ -5385,7 +5801,7 @@ class Train {
     const counts = { big: 0, med: 0, small: 0 };
     for (const wd of this._wheelData) {
       const { v, w, side, pool } = wd;
-      const phase = -this.frontDist / w.r;
+      const phase = this.wheelPhase(w.r);
       // rotate about X first, then translate: compose by hand
       m4.makeRotationX(phase);
       m4.elements[12] = side * w.x; m4.elements[13] = w.r; m4.elements[14] = w.z;
@@ -5402,7 +5818,7 @@ class Train {
     // valve gear
     const R = CRANK_THROW, ROD = MAIN_ROD;
     for (const r of this.rods) {
-      const th = -this.frontDist / LOCO.wheel + (r.side > 0 ? 0 : Math.PI / 2);
+      const th = this.rodAngle(r.side);
       const cy = LOCO.wheel, cz = LOCO.drivers[2];
       const py = cy + Math.sin(th) * R, pz = cz + Math.cos(th) * R;
       r.coupling.position.set(r.side * 1.20, py, pz);
@@ -5514,8 +5930,11 @@ class Cam {
     // ease the look-around back to straight ahead when the player lets go
     if (!this._dragging) { this.yaw *= 1 - Math.min(1, dt * 1.7); this.pitch *= 1 - Math.min(1, dt * 1.7); }
 
+    /* Setting back, the camera swings round to look the way the train is
+       actually going — otherwise you are reversing blind. */
+    const rev = t.dir < 0 ? -1 : 1;
     const cy = Math.cos(this.yaw), sy = Math.sin(this.yaw);
-    const fx = dir.x * cy - dir.z * sy, fz = dir.x * sy + dir.z * cy;
+    const fx = (dir.x * cy - dir.z * sy) * rev, fz = (dir.x * sy + dir.z * cy) * rev;
 
     if (this.mode === CAM_CHASE) {
       /* Hold station just behind the tender and a little higher, looking over
@@ -5531,7 +5950,8 @@ class Cam {
       const D = lerp(15.0 + sp * 2.5, 8.5, this._tun);
       const H = lerp(7.0 + sp * 1.3 - this.pitch * 7, 2.9, this._tun);
       this._want.set(head.x - fx * D, head.y + H, head.z - fz * D);
-      this._wantLook.set(head.x + dir.x * 11, head.y + 2.2 + this.pitch * 4, head.z + dir.z * 11);
+      this._wantLook.set(head.x + dir.x * 11 * rev, head.y + 2.2 + this.pitch * 4,
+                         head.z + dir.z * 11 * rev);
       const s = 1 - Math.pow(this._tun > 0.4 ? 0.00002 : 0.0026, dt);
       this.pos.lerp(this._want, s);
       this.look.lerp(this._wantLook, Math.min(1, s * 1.5));
@@ -5632,6 +6052,271 @@ class Cam {
       this.cam.fov = lerp(this.cam.fov, fov, Math.min(1, dt * 3));
       this.cam.updateProjectionMatrix();
     }
+  }
+}
+/*──────────────────────────── §9  SHEEP ─────────────────────────────────────*/
+/* Flocks that graze near the line, drift about, and now and then take it into
+   their heads to cross. A train that has to wait for sheep is the single most
+   requested thing by anyone who has ever watched a branch line, and it gives a
+   child a reason to use the whistle. The flock scatters off the rails after a
+   few seconds whether or not the whistle is blown — the whistle just makes it
+   quicker, which is a lesson in itself. */
+
+const SHEEP_PER_FLOCK = 7;
+const FLOCK_COUNT = 7;
+
+class Flocks {
+  static id = 'flocks';
+  static deps = ['render', 'track', 'world', 'train'];
+  static label = 'Letting out the sheep';
+
+  async init(ctx) {
+    this.ctx = ctx;
+    this.track = ctx.get('track');
+    this.world = ctx.get('world');
+    this.train = ctx.get('train');
+    this.audio = ctx.get('audio');
+    this.rng = mulberry(CFG.seed ^ 0x5EEB);
+
+    this.group = new THREE.Group();
+    ctx.scene.add(this.group);
+
+    const mb = new MB();
+    const wool = new THREE.Color('#F2EDE0');
+    mb.blob(0, 0.86, 0, 0.80, 0.62, 0.54, 3, 7, wool, 0.20, 41);
+    mb.blob(0, 0.98, 0.62, 0.30, 0.30, 0.26, 2, 6, hex('boiler'), 0, 42);
+    mb.box(0, 1.06, 0.78, 0.30, 0.16, 0.14, hex('boiler'));
+    for (let i = 0; i < 4; i++)
+      mb.cyl((i & 1 ? 0.34 : -0.34), 0.30, (i & 2 ? 0.28 : -0.28), 0.075, 0.075, 0.60, 4, hex('boiler'));
+    this.geo = mb.geometry();
+
+    const cap = FLOCK_COUNT * SHEEP_PER_FLOCK;
+    this.mesh = new THREE.InstancedMesh(this.geo, MAT.solid, cap);
+    this.mesh.castShadow = true;
+    this.mesh.frustumCulled = false;
+    this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.group.add(this.mesh);
+
+    this._m4 = new THREE.Matrix4();
+    this._q = new THREE.Quaternion();
+    this._p = new THREE.Vector3();
+    this._s = new THREE.Vector3(1, 1, 1);
+    this._axis = new THREE.Vector3(0, 1, 0);
+
+    this.flocks = [];
+    this._seed();
+    this.blocked = false;
+    this._clearTimer = 0;
+  }
+
+  /* Pick a home for each flock: grazeable ground within sight of the railway,
+     with a crossing point picked out on the line itself. */
+  _seed() {
+    const r = this.rng;
+    const segs = [this.track.segs.main, ...this.track.branches];
+    /* Pick the line to graze beside in proportion to how long it is. Choosing
+       uniformly between five segments put every single flock on a branch — the
+       main loop is more than half the network but only one fifth of the list,
+       and a train that never leaves it would never meet a sheep. */
+    const total = segs.reduce((a, s) => a + s.len, 0);
+    const pickSeg = () => {
+      let u = r() * total;
+      for (const s of segs) { u -= s.len; if (u <= 0) return s; }
+      return segs[0];
+    };
+    let guard = 0;
+    while (this.flocks.length < FLOCK_COUNT && guard++ < 900) {
+      const seg = pickSeg();
+      const i = 12 + ((r() * (seg.pts.length - 24)) | 0);
+      if (seg.kind && seg.kind[i] !== 0) continue;              // not on a bridge or in a tunnel
+      const p = seg.pts[i];
+      const side = r() < 0.5 ? 1 : -1;
+      const off = 26 + r() * 34;
+      const cx = p.x + (-p.tz) * off * side, cz = p.z + p.tx * off * side;
+      const h = this.world.height(cx, cz);
+      if (h < WATER_Y + 2) continue;
+      if (this.world.slope(cx, cz) > 0.7) continue;
+      // too near a station and the platform ends up full of sheep
+      let clear = true;
+      for (const k in this.track.stations) {
+        const st = this.track.stations[k];
+        if (Math.hypot(cx - st.px, cz - st.pz) < 90) { clear = false; break; }
+      }
+      if (!clear) continue;
+
+      const flock = {
+        seg, i, side,
+        home: { x: cx, z: cz },
+        cx, cz,                                   // where the flock is now
+        tx: cx, tz: cz,                           // where it is heading
+        state: 'graze',
+        onTrack: false,
+        dawdle: 0,
+        cool: 4 + r() * 22,
+        sheep: [],
+      };
+      for (let s = 0; s < SHEEP_PER_FLOCK; s++) {
+        flock.sheep.push({
+          ox: r.range(-5, 5), oz: r.range(-5, 5),
+          x: cx, z: cz, a: r() * TAU,
+          sp: 0.7 + r() * 0.6, wob: r() * TAU,
+          scale: 0.82 + r() * 0.4,
+        });
+      }
+      this.flocks.push(flock);
+    }
+  }
+
+  /* Send a flock across the rails. */
+  _startCrossing(f) {
+    f.state = 'crossing';
+    f.hasDawdled = false;
+    f.side = -f.side;
+    const p = f.seg.pts[f.i];
+    const off = 26 + this.rng() * 26;
+    f.tx = p.x + (-p.tz) * off * f.side;
+    f.tz = p.z + p.tx * off * f.side;
+  }
+
+  update(dt, ctx) {
+    const r = this.rng;
+    let anyOnTrack = false;
+    let nearest = Infinity;
+
+    let n = 0;
+    for (const f of this.flocks) {
+      const p = f.seg.pts[f.i];
+      const ahead = this._distanceAhead(f);
+      f.cool -= dt;
+
+      /* Left to their own devices, sheep cross the line when they feel like it
+         and the train is somewhere else entirely — over five minutes of running
+         not one crossing coincided with a train. So the trigger is the train
+         itself: a flock that sees one coming has a fair chance of choosing that
+         exact moment to wander over, which is both funnier and what actually
+         happens on a real branch line. */
+      /* Trigger far enough out that they actually get there first. A flock
+         forty metres off the line walks to it in a dozen seconds, and a train
+         covers three hundred metres in that time — cued at two hundred, the
+         sheep amble onto the rails just as the last wagon disappears. */
+      if (f.state === 'graze' && f.cool <= 0 && ahead > 300 && ahead < 560) {
+        if (r() < 0.5) this._startCrossing(f);
+        f.cool = 30 + r() * 34;
+      }
+
+      // once they reach the rails they stop and look at the train — but only
+      // the once, or they stand there swapping between stopping and starting
+      const latC = Math.abs((f.cx - p.x) * (-p.tz) + (f.cz - p.z) * p.tx);
+      if (f.state === 'crossing' && !f.hasDawdled && latC < 5) {
+        f.state = 'dawdle';
+        f.dawdle = 2.4 + r() * 2.6;
+        f.hasDawdled = true;
+      }
+      if (f.state === 'dawdle') {
+        f.dawdle -= dt;
+        if (f.dawdle <= 0) { f.state = 'crossing'; }
+      }
+      /* However long they stand there, they are gone within a few seconds of
+         the train actually being held. A hold-up is meant to be an event, not a
+         punishment — half a minute of waiting is how you lose a five-year-old. */
+      // count only while a train is actually waiting on them, not from the
+      // moment they step over the rail with nothing in sight
+      f.blockT = (f.onTrack && ahead < 150) ? (f.blockT || 0) + dt : 0;
+      if (f.blockT > 4.5) {
+        // carry on the way they were already going — turning them round here
+        // just walks them back over the rails again
+        f.dawdle = 0;
+        if (f.state === 'dawdle') f.state = 'crossing';
+        for (const s2 of f.sheep) s2.sp = Math.max(s2.sp, 1.7);
+      }
+
+      const speed = f.state === 'crossing' ? 3.9 : f.state === 'dawdle' ? 0.25 : 0.85;
+      const dx = f.tx - f.cx, dz = f.tz - f.cz;
+      const d = Math.hypot(dx, dz);
+      if (d > 0.6) {
+        const v = speed * dt;
+        f.cx += dx / d * v; f.cz += dz / d * v;
+      } else if (f.state === 'crossing') {
+        f.state = 'graze';
+        f.cool = Math.max(f.cool, 18 + r() * 24);
+      } else if (f.state === 'graze' && r() < dt * 0.35) {
+        f.tx = f.home.x + r.range(-16, 16);
+        f.tz = f.home.z + r.range(-16, 16);
+      }
+
+      let flockOn = false;
+      for (const s of f.sheep) {
+        const gx = f.cx + s.ox, gz = f.cz + s.oz;
+        const sdx = gx - s.x, sdz = gz - s.z;
+        const sd = Math.hypot(sdx, sdz);
+        if (sd > 0.05) {
+          const step = Math.min(sd, (speed + 0.9) * s.sp * dt);
+          s.x += sdx / sd * step; s.z += sdz / sd * step;
+          s.a = Math.atan2(sdx, sdz);
+        }
+        s.wob += dt * 2.2;
+        const lat = Math.abs((s.x - p.x) * (-p.tz) + (s.z - p.z) * p.tx);
+        const along = Math.abs((s.x - p.x) * p.tx + (s.z - p.z) * p.tz);
+        if (lat < 4.0 && along < 30) flockOn = true;
+
+        const y = this.world.height(s.x, s.z);
+        this._q.setFromAxisAngle(this._axis, s.a + Math.sin(s.wob) * 0.08);
+        this._p.set(s.x, y - 0.05, s.z);
+        this._s.set(s.scale, s.scale * (1 + Math.sin(s.wob * 0.7) * 0.02), s.scale);
+        this.mesh.setMatrixAt(n, this._m4.compose(this._p, this._q, this._s));
+        n++;
+      }
+      f.onTrack = flockOn;
+      if (flockOn) {
+        anyOnTrack = true;
+        if (ahead < nearest) nearest = ahead;
+      }
+    }
+    this.mesh.count = n;
+    this.mesh.instanceMatrix.needsUpdate = true;
+
+    /* Hold the train if sheep are on the line close ahead. They will move on
+       their own; the whistle simply hurries them. */
+    const wasBlocked = this.blocked;
+    this.blocked = anyOnTrack && nearest < 130;
+    this.stopDistance = this.blocked ? nearest : Infinity;
+    if (this.blocked && !wasBlocked) {
+      ctx.events.emit('sheep:onLine', {});
+      this.audio.bleat();
+    }
+    if (!this.blocked && wasBlocked) ctx.events.emit('sheep:clear', {});
+  }
+
+  /* Sheep respond to a whistle by getting a move on. */
+  shoo() {
+    let any = false;
+    for (const f of this.flocks) {
+      if (!f.onTrack) continue;
+      any = true;
+      f.dawdle = Math.min(f.dawdle || 0, 0.35);
+      if (f.state === 'dawdle') f.state = 'crossing';
+      for (const s of f.sheep) s.sp = Math.max(s.sp, 1.6);
+    }
+    if (any) this.audio.bleat();
+    return any;
+  }
+
+  _distanceAhead(f) {
+    const t = this.train;
+    const p = f.seg.pts[f.i];
+    if (f.seg.id !== t.seg) return Infinity;
+    const sHere = p.s;
+    if (t.seg === 'main') {
+      const L = this.track.mainLen;
+      const d = t.dir >= 0 ? mod(sHere - t.s, L) : mod(t.s - sHere, L);
+      return d;
+    }
+    const d = t.dir >= 0 ? sHere - t.s : t.s - sHere;
+    return d < 0 ? Infinity : d;
+  }
+
+  dispose() {
+    this.geo.dispose();
   }
 }
 /*───────────────────── §10  MISSIONS, SIGNALS & SUMS ────────────────────────*/
@@ -5744,6 +6429,8 @@ class Play {
     this.rng = mulberry(CFG.seed ^ 0xC0FE);
 
     this.age = 1;
+    this.puzzles = 'both';        // 'sums' | 'words' | 'both'
+    this._seenWords = new Set();
     this.stars = 0;
     this.done = {};
     this.mission = null;
@@ -5760,6 +6447,17 @@ class Play {
     await this._buildBeacons();
 
     ctx.events.on('train:junction', p => this._onJunction(p));
+    ctx.events.on('sheep:onLine', () => {
+      if (!this.active) return;
+      this.ctx.events.emit('ui:toast', {
+        pic: 'i-sheep', text: 'Sheep on the line!',
+        say: 'Sheep on the line! Blow the whistle to move them along.', hold: 4200,
+      });
+    });
+    ctx.events.on('sheep:clear', () => {
+      if (!this.active) return;
+      this.ctx.events.emit('ui:toast', { pic: 'i-sheep', text: 'All clear!', say: 'All clear.', hold: 1800 });
+    });
     ctx.events.on('train:switchset', p => this._onSwitchSet(p));
     ctx.events.on('train:merged', () => this._refreshRibbon());
   }
@@ -6037,7 +6735,14 @@ class Play {
     if (nearest) {
       if (!this.quizGate && nd < 120) {
         this.quizGate = nearest;
-        nearest.q = makeQuestion(this.age, this.rng);
+        /* Alternate the two kinds rather than picking at random, so a child
+           who is better at one does not get a run of the other. */
+        const wantWord = this.puzzles === 'words' ||
+          (this.puzzles === 'both' && (this._lastKind !== 'word'));
+        nearest.q = wantWord
+          ? makeWordQuestion(this.age, this.rng, this._seenWords)
+          : makeQuestion(this.age, this.rng);
+        this._lastKind = nearest.q.kind === 'word' ? 'word' : 'sum';
         ctx.events.emit('ui:quiz', { q: nearest.q, gate: nearest });
         this.audio.bell(660, 0.09);
         this.audio.say(nearest.q.spoken, { force: true });
@@ -6054,6 +6759,13 @@ class Play {
       if (d === Infinity || d > 320) { this._closeQuiz(); }
     }
     this._gateLimit = limit;
+
+    /* Sheep. They stop the train dead, and only clear in their own time. */
+    const fl = ctx.has('flocks') ? ctx.get('flocks') : null;
+    if (fl && fl.blocked) {
+      const d = fl.stopDistance;
+      limit = Math.min(limit, Math.max(0, (d - 18) * 0.16));
+    }
 
     // the destination platform pulls the train down to a walk
     const tgt = this.target;
@@ -6079,7 +6791,7 @@ class Play {
   answer(value) {
     const g = this.quizGate;
     if (!g || !g.q) return null;
-    const right = value === g.q.ans;
+    const right = String(value) === String(g.q.ans);
     g.tries++;
     if (right) {
       g.open = true;
@@ -6157,6 +6869,151 @@ class Play {
     this.beaconTex.forEach(t => t.dispose());
   }
 }
+/*───────────────────────── §10b  READING PUZZLES ────────────────────────────*/
+/* Ninety questions, thirty to an age band, written out rather than generated.
+   Word puzzles do not come from a formula the way sums do — "which word rhymes
+   with cat" needs a human to pick the distractors, because the wrong answers
+   have to be wrong in the way a child would plausibly get them wrong, not
+   merely different. The correct answer is written first in each row and the
+   choices are shuffled when the card is dealt.
+
+   Every prompt is written to be read aloud as well as displayed, because the
+   children who most need reading practice are the ones who cannot yet read the
+   question. */
+
+const READING = [
+  /*── 5–6: first sounds, rhymes, and what things are ──*/
+  [
+    ['Which word starts like ball?', 'bus', 'sun', 'cat'],
+    ['Which word starts like moon?', 'map', 'dog', 'pin'],
+    ['Which word starts like sock?', 'sun', 'hat', 'leg'],
+    ['Which word starts like tree?', 'top', 'fish', 'mug'],
+    ['Which word starts like cake?', 'cup', 'nose', 'bell'],
+    ['Which word starts like fish?', 'fox', 'gate', 'rain'],
+    ['Which word rhymes with cat?', 'hat', 'dog', 'cup'],
+    ['Which word rhymes with dog?', 'log', 'cat', 'pin'],
+    ['Which word rhymes with bee?', 'tree', 'boat', 'hand'],
+    ['Which word rhymes with sun?', 'run', 'sit', 'top'],
+    ['Which word rhymes with car?', 'star', 'cup', 'bed'],
+    ['Which word rhymes with bell?', 'well', 'ball', 'bird'],
+    ['Which one is an animal?', 'sheep', 'chair', 'cloud'],
+    ['Which one is a colour?', 'green', 'spoon', 'river'],
+    ['Which one do you eat?', 'apple', 'shoe', 'rock'],
+    ['Which one can fly?', 'bird', 'boat', 'chair'],
+    ['Which one is a number?', 'seven', 'purple', 'window'],
+    ['Which one lives in water?', 'fish', 'horse', 'tractor'],
+    ['Which one do you wear?', 'coat', 'lamp', 'bridge'],
+    ['Which one is hot?', 'fire', 'ice', 'snow'],
+    ['Which one is big?', 'elephant', 'ant', 'mouse'],
+    ['Which one is a train part?', 'wheel', 'apple', 'cloud'],
+    ['Which word means the same as big?', 'large', 'tiny', 'slow'],
+    ['Which is the opposite of hot?', 'cold', 'loud', 'happy'],
+    ['Which is the opposite of up?', 'down', 'fast', 'wet'],
+    ['Which is the opposite of day?', 'night', 'week', 'road'],
+    ['Which is the opposite of stop?', 'go', 'sit', 'red'],
+    ['What do you drink?', 'milk', 'bread', 'sand'],
+    ['Where does a train run?', 'track', 'sky', 'sea'],
+    ['What does a sheep say?', 'baa', 'moo', 'quack'],
+  ],
+
+  /*── 7–8: opposites, plurals, groups and spelling ──*/
+  [
+    ['Which is the opposite of heavy?', 'light', 'thick', 'round'],
+    ['Which is the opposite of empty?', 'full', 'open', 'clean'],
+    ['Which is the opposite of early?', 'late', 'soon', 'quick'],
+    ['Which is the opposite of rough?', 'smooth', 'hard', 'sharp'],
+    ['Which is the opposite of quiet?', 'noisy', 'still', 'sleepy'],
+    ['Which is the opposite of ancient?', 'new', 'old', 'huge'],
+    ['Which means almost the same as happy?', 'glad', 'tired', 'angry'],
+    ['Which means almost the same as quick?', 'fast', 'heavy', 'quiet'],
+    ['Which means almost the same as begin?', 'start', 'finish', 'follow'],
+    ['Which means almost the same as shout?', 'yell', 'whisper', 'listen'],
+    ['What is more than one mouse?', 'mice', 'mouses', 'mouse'],
+    ['What is more than one child?', 'children', 'childs', 'childrens'],
+    ['What is more than one box?', 'boxes', 'boxs', 'boxen'],
+    ['What is more than one foot?', 'feet', 'foots', 'feets'],
+    ['What is more than one leaf?', 'leaves', 'leafs', 'leafes'],
+    ['Which one is spelled correctly?', 'because', 'becuase', 'becouse'],
+    ['Which one is spelled correctly?', 'friend', 'freind', 'frend'],
+    ['Which one is spelled correctly?', 'people', 'peeple', 'peopel'],
+    ['Which one is spelled correctly?', 'engine', 'enjine', 'engin'],
+    ['Which one is spelled correctly?', 'tunnel', 'tunel', 'tunnell'],
+    ['Which one is a vehicle?', 'lorry', 'lantern', 'ladder'],
+    ['Which one is a season?', 'autumn', 'Tuesday', 'evening'],
+    ['Which one is a bird?', 'robin', 'rabbit', 'salmon'],
+    ['Which one is a vegetable?', 'carrot', 'cherry', 'cheese'],
+    ['Which one belongs on a railway?', 'signal', 'saucepan', 'sandcastle'],
+    ['Which word is a doing word?', 'jump', 'blue', 'chair'],
+    ['Which word describes a thing?', 'shiny', 'run', 'table'],
+    ['Which word joins two ideas?', 'and', 'quickly', 'lantern'],
+    ['Which word rhymes with station?', 'nation', 'stairway', 'statue'],
+    ['Which word rhymes with whistle?', 'thistle', 'wheel', 'winter'],
+  ],
+
+  /*── 9–10: homophones, meanings and shades of a word ──*/
+  [
+    ['Which spelling fits: I have ___ apples?', 'two', 'to', 'too'],
+    ['Which spelling fits: put it over ___?', 'there', 'their', "they're"],
+    ['Which spelling fits: the dog wagged ___ tail?', 'its', "it's", 'its\u2019'],
+    ['Which spelling fits: we walked ___ the tunnel?', 'through', 'threw', 'thorough'],
+    ['Which spelling fits: the train came to a ___?', 'halt', 'haunt', 'hault'],
+    ['Which word means very tired?', 'weary', 'wary', 'wiry'],
+    ['Which word means very old?', 'ancient', 'anxious', 'awkward'],
+    ['Which word means to look closely?', 'examine', 'exclaim', 'expand'],
+    ['Which word means a small amount?', 'scarce', 'severe', 'secure'],
+    ['Which word means to make something better?', 'improve', 'impress', 'imagine'],
+    ['Which word means almost the same as enormous?', 'gigantic', 'generous', 'genuine'],
+    ['Which word means almost the same as journey?', 'voyage', 'village', 'vanish'],
+    ['Which word means almost the same as brave?', 'courageous', 'curious', 'careless'],
+    ['Which is the opposite of generous?', 'mean', 'kind', 'gentle'],
+    ['Which is the opposite of ancient?', 'modern', 'mighty', 'mysterious'],
+    ['Which is the opposite of arrive?', 'depart', 'delay', 'deliver'],
+    ['Which one is spelled correctly?', 'necessary', 'neccessary', 'necesary'],
+    ['Which one is spelled correctly?', 'separate', 'seperate', 'seperete'],
+    ['Which one is spelled correctly?', 'definitely', 'definately', 'definitly'],
+    ['Which one is spelled correctly?', 'rhythm', 'rythm', 'rhythem'],
+    ['Which one is spelled correctly?', 'occurred', 'occured', 'ocurred'],
+    ['Which is the past tense of bring?', 'brought', 'bringed', 'brang'],
+    ['Which is the past tense of catch?', 'caught', 'catched', 'cotch'],
+    ['Which is more than one crisis?', 'crises', 'crisises', 'crisis'],
+    ['Which word is a noun?', 'harbour', 'hurriedly', 'hurried'],
+    ['Which word is an adverb?', 'quietly', 'quiet', 'quieter'],
+    ['A locomotive is a kind of what?', 'engine', 'carriage', 'platform'],
+    ['A viaduct carries a railway over what?', 'a valley', 'a tunnel', 'a signal'],
+    ['What does a signal tell a driver?', 'when to stop', 'the time', 'the weather'],
+    ['Which word means water falling from clouds?', 'precipitation', 'perspiration', 'preparation'],
+  ],
+];
+
+/* Build a card from the bank. Rows are drawn without immediate repeats so a
+   child does not get the same question twice in one journey. */
+function makeWordQuestion(age, rng, seen) {
+  const bank = READING[clamp(age, 0, 2)];
+  let row = null;
+  for (let tries = 0; tries < 24; tries++) {
+    const r = bank[(rng() * bank.length) | 0];
+    if (!seen || !seen.has(r[0])) { row = r; break; }
+  }
+  if (!row) row = bank[(rng() * bank.length) | 0];
+  if (seen) {
+    seen.add(row[0]);
+    if (seen.size > bank.length * 0.7) seen.clear();
+  }
+
+  const choices = [row[1], row[2], row[3]];
+  for (let i = choices.length - 1; i > 0; i--) {
+    const j = (rng() * (i + 1)) | 0;
+    const t = choices[i]; choices[i] = choices[j]; choices[j] = t;
+  }
+  return {
+    kind: 'word',
+    text: row[0],
+    spoken: row[0] + ' Is it ' + choices.join(', or ') + '?',
+    ans: row[1],
+    choices,
+    visual: null,
+  };
+}
 /*──────────────────────────────── §12  SAVE ─────────────────────────────────*/
 /* One versioned blob in localStorage. Small enough that there is no reason to
    reach for IndexedDB, and a corrupt or absent entry just means a fresh start
@@ -6179,6 +7036,9 @@ const DEFAULT_SAVE = {
   quality: null,          // null = decide from the device
   lastMission: 'm1',
   viewSeen: false,      // has the player ever changed camera?
+  puzzles: 'both',      // 'sums' | 'words' | 'both'
+  night: false,
+  season: 'summer',
 };
 
 const Save = {
@@ -6399,6 +7259,8 @@ class UI {
     this.play.stars = s.stars;
     this.play.done = s.done || {};
     this.play.age = s.age;
+    this.play.puzzles = s.puzzles || 'both';
+    WORLD.season = s.season || 'summer';
     this.audio.setSound(s.sound);
     this.audio.setVoice(s.voice);
     $('#trainName').value = s.name;
@@ -6413,6 +7275,9 @@ class UI {
     s.stars = this.play.stars;
     s.done = this.play.done;
     s.age = this.play.age;
+    s.puzzles = this.play.puzzles;
+    s.season = WORLD.season;
+    s.night = WORLD.night;
     Save.save(s);
   }
 
@@ -6497,8 +7362,23 @@ class UI {
       this.audio.resume();
       this.ctx.events.emit('train:whistle', {});
     });
+    // a whistle moves sheep along; that is what it is for
+    this.ctx.events.on('train:whistle', () => {
+      const fl = this.ctx.has('flocks') ? this.ctx.get('flocks') : null;
+      if (fl && fl.shoo()) this.toast('i-sheep', 'Off you go!', null, 1400);
+    });
     $('#btnCam').addEventListener('click', () => this.cycleView());
     $('#btnPause').addEventListener('click', () => this.openDepot());
+
+    const setDir = d => this.ctx.events.emit('train:direction', { dir: d });
+    $('#dirFwd').addEventListener('click', () => setDir(1));
+    $('#dirRev').addEventListener('click', () => setDir(-1));
+    this.ctx.events.on('train:directionSet', ({ dir }) => {
+      $('#dirFwd').setAttribute('aria-pressed', dir > 0);
+      $('#dirRev').setAttribute('aria-pressed', dir < 0);
+      this.toast(dir > 0 ? 'i-fwd' : 'i-rev', dir > 0 ? 'Forward' : 'Setting back',
+                 dir > 0 ? 'Forward.' : 'Setting back.', 1500);
+    });
 
     $('#swLeft').addEventListener('click', () => this._pickSide('left'));
     $('#swRight').addEventListener('click', () => this._pickSide('right'));
@@ -6562,6 +7442,7 @@ class UI {
         else if (k === 'arrowleft' || k === 'a') { this._pickSide('left'); e.preventDefault(); }
         else if (k === 'arrowright' || k === 'd') { this._pickSide('right'); e.preventDefault(); }
         else if (k === ' ') { this.ctx.events.emit('train:whistle', {}); e.preventDefault(); }
+        else if (k === 'r') { this.ctx.events.emit('train:direction', { dir: -this.train.dir }); }
         else if (k === 'b' || k === 'shift') { this.ctx.events.emit('train:brake', { on: true }); }
         else if (k === 'c') { this.cycleView(); }
         else if (k === 'escape') { this.openDepot(); }
@@ -6823,6 +7704,28 @@ class UI {
       paint();
     };
     seg('#segAge', () => this.play.age, v => { this.play.age = v; this.save.age = v; });
+
+    const pick = (host, attr, get, set) => {
+      const btns = $$(host + ' button');
+      const paint = () => btns.forEach(b =>
+        b.setAttribute('aria-pressed', String(b.dataset[attr] === String(get()))));
+      btns.forEach(b => b.addEventListener('click', () => {
+        set(b.dataset[attr]); paint(); this.persist(); this.audio.bell(700, 0.07);
+      }));
+      paint();
+    };
+    pick('#segPuz', 'p', () => this.play.puzzles, v => { this.play.puzzles = v; });
+    pick('#segTime', 'n', () => (WORLD.night ? '1' : '0'), v => {
+      this.ctx.get('render').setNight(v === '1');
+      this.audio.say(v === '1' ? 'Good evening. Lamps on.' : 'Good morning.', { force: true });
+    });
+    pick('#segSeason', 's', () => WORLD.season, v => {
+      WORLD.season = v;
+      this.ctx.get('world').applySeason();
+      this.ctx.get('props').applySeason();
+      this.ctx.get('render').applySeason();
+      this.audio.say(SEASONS[v].name + ' in the valley.', { force: true });
+    });
     seg('#segQual', () => this.ctx.q.id, v => {
       this.ctx.setQuality(v); this.save.quality = v; this.ctx._governed = true;
     });
@@ -6921,7 +7824,13 @@ class UI {
   openQuiz(q) {
     this._q = q;
     const el = $('#quiz');
-    $('#qText').innerHTML = q.a + ' <em>' + q.op + '</em> ' + q.b;
+    const isWord = q.kind === 'word';
+    $('#qText').classList.toggle('wordy', isWord);
+    $('#qAnswers').classList.toggle('words', isWord);
+    $('#quiz').setAttribute('aria-label', isWord ? 'Reading puzzle' : 'Number puzzle');
+    $('#qText').innerHTML = isWord
+      ? q.text.replace(/</g, '&lt;')
+      : q.a + ' <em>' + q.op + '</em> ' + q.b;
 
     const gh = $('#qGroups');
     gh.innerHTML = '';
@@ -7117,6 +8026,7 @@ function guessQuality() {
      .add(new Props())
      .add(new Train())
      .add(new Cam())
+     .add(new Flocks())
      .add(new Play())
      .add(new UI());
 
@@ -7127,6 +8037,15 @@ function guessQuality() {
   });
   bar.style.width = '100%';
   txt.textContent = 'Ready — ' + ((performance.now() - t0) / 1000).toFixed(1) + 's';
+
+  // put the world into whatever state the player left it in
+  WORLD.season = eng.save.season || 'summer';
+  eng.get('render').setNight(!!eng.save.night);
+  if (WORLD.season !== 'summer') {
+    eng.get('world').applySeason();
+    eng.get('props').applySeason();
+    eng.get('render').applySeason();
+  }
 
   const fit = () => {
     const w = window.innerWidth, h = window.innerHeight;
