@@ -603,6 +603,53 @@ h1.big .sub{display:block;font-size:.44em;letter-spacing:.06em;margin-top:.28em;
   </g>
 </symbol>
 
+<symbol id="p-city" viewBox="0 0 24 24">
+  <rect x="2" y="10" width="5" height="12" rx="1" fill="#7C8B9A"/>
+  <rect x="8" y="4" width="6" height="18" rx="1" fill="#5F7183"/>
+  <rect x="15" y="8" width="7" height="14" rx="1" fill="#8A97A3"/>
+  <g fill="#FFE9B8"><rect x="3.2" y="12" width="1.6" height="1.8"/><rect x="3.2" y="16" width="1.6" height="1.8"/>
+   <rect x="9.4" y="6.5" width="1.6" height="1.8"/><rect x="11.6" y="6.5" width="1.6" height="1.8"/>
+   <rect x="9.4" y="11" width="1.6" height="1.8"/><rect x="11.6" y="11" width="1.6" height="1.8"/>
+   <rect x="16.4" y="10.5" width="1.6" height="1.8"/><rect x="18.8" y="10.5" width="1.6" height="1.8"/>
+   <rect x="16.4" y="15" width="1.6" height="1.8"/><rect x="18.8" y="15" width="1.6" height="1.8"/></g>
+</symbol>
+<symbol id="p-forest" viewBox="0 0 24 24">
+  <path d="M7 18 3 18 7 3 11 18z" fill="#3F6B37"/><rect x="6.3" y="17" width="1.4" height="4" fill="#6B4A2E"/>
+  <path d="M17 20 12.5 20 17 6 21.5 20z" fill="#2F5A2C"/><rect x="16.3" y="19" width="1.4" height="3" fill="#6B4A2E"/>
+</symbol>
+<symbol id="p-desert" viewBox="0 0 24 24">
+  <path d="M1 19c4-5 8-2 11-5s6-3 11 1v5H1z" fill="#D8B978"/>
+  <rect x="10.6" y="7" width="2.6" height="12" rx="1.2" fill="#4E7F49"/>
+  <path d="M11.9 12H8.6a1.4 1.4 0 0 0-1.4 1.4V16M11.9 10.5h3.6a1.4 1.4 0 0 1 1.4 1.4v2.4"
+        stroke="#4E7F49" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+  <circle cx="18.5" cy="4.5" r="2.6" fill="#E8B24A"/>
+</symbol>
+<symbol id="p-summit" viewBox="0 0 24 24">
+  <path d="M1 20 9 5l5 8 2.5-3.5L23 20z" fill="#7F8A96"/>
+  <path d="M9 5l3.1 5.2-1.3 1.6-1.6-1.1-1.5 1.3L6 8.6z" fill="#F2F6FA"/>
+  <path d="M16.5 9.5 19 13l-1.6.6-1.3-1.1-1 .9z" fill="#F2F6FA"/>
+</symbol>
+<symbol id="p-timber" viewBox="0 0 24 24">
+  <ellipse cx="6" cy="8" rx="3" ry="3.4" fill="#B08553"/><rect x="6" y="4.6" width="12" height="6.8" fill="#8A6440"/>
+  <ellipse cx="18" cy="8" rx="3" ry="3.4" fill="#C9A277"/><circle cx="18" cy="8" r="1.2" fill="#8A6440"/>
+  <ellipse cx="5" cy="16.5" rx="3" ry="3.4" fill="#B08553"/><rect x="5" y="13.1" width="13" height="6.8" fill="#8A6440"/>
+  <ellipse cx="18" cy="16.5" rx="3" ry="3.4" fill="#C9A277"/><circle cx="18" cy="16.5" r="1.2" fill="#8A6440"/>
+</symbol>
+<symbol id="p-water" viewBox="0 0 24 24">
+  <path d="M12 2c4.5 6 7 9.4 7 12.6A7 7 0 0 1 5 14.6C5 11.4 7.5 8 12 2z" fill="#4E9AC4"/>
+  <path d="M9.5 14.5a3 3 0 0 0 3.4 3" stroke="#CFE9F5" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+</symbol>
+<symbol id="p-parcel" viewBox="0 0 24 24">
+  <rect x="2.5" y="7" width="19" height="13" rx="1.6" fill="#C08A4E"/>
+  <rect x="2.5" y="7" width="19" height="4" fill="#A97440"/>
+  <rect x="10.4" y="7" width="3.2" height="13" fill="#E4C9A0"/>
+  <path d="M12 7c-2-3.4-5.6-2-4 .6M12 7c2-3.4 5.6-2 4 .6" stroke="#E4C9A0" stroke-width="1.8" fill="none"/>
+</symbol>
+<symbol id="p-post" viewBox="0 0 24 24">
+  <rect x="2.5" y="5.5" width="19" height="13" rx="2" fill="#EFE3CA"/>
+  <path d="m3.5 7 8.5 6.5L20.5 7" stroke="#94403A" stroke-width="2.1" fill="none" stroke-linejoin="round"/>
+  <path d="M17 15.5 21 19M21 15.5 17 19" stroke="#7F8A96" stroke-width="1.6" stroke-linecap="round"/>
+</symbol>
 <symbol id="i-fwd" viewBox="0 0 24 24">
   <path d="M4 12h13" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
   <path d="M13 6.5 19.5 12 13 17.5z" fill="currentColor"/>
@@ -1259,14 +1306,14 @@ window.addEventListener('unhandledrejection', e => {
 
 const CFG = {
   seed:        20260726,
-  world:       2000,          // terrain extent, metres, centred on the origin
+  world:       3400,          // terrain extent, metres, centred on the origin
   hmRes:       257,           // heightfield vertices per side (257 → 131k tris)
   texRes:      1024,          // baked ground colour map
   sunElev:     22.0,          // degrees above the horizon
   sunAzim:     118.0,         // degrees, 0 = +Z, increasing toward +X
   fov:         58,
   fogNear:     120,
-  fogFar:      1250,
+  fogFar:      1600,
   gauge:       1.6,           // rail centres, metres — a hair wide, reads better
   railTop:     0.34,          // rail head above the sleeper bed
   maxSpeed:    26,            // metres/second at full regulator (~94 km/h)
@@ -2573,6 +2620,28 @@ function riverField(x, z) {
 const riverHalfWidth = t => 3.5 + 31 * Math.pow(clamp(t, 0, 1), 1.15);
 const riverLevel = t => lerp(96, WATER_Y - 0.6, Math.pow(clamp(t, 0, 1), 0.82));
 
+/*──────────────────────────── §2c  BIOMES ───────────────────────────────────*/
+/* Which country you are in, as a blend rather than a hard boundary, so the
+   ground texture, the planting and the terrain shaping can all consult the same
+   answer and agree with one another at the edges. */
+const _bio = { desert: 0, forest: 0, alpine: 0, meadow: 1 };
+function biomeMix(x, z, h, out) {
+  const o = out || _bio;
+  // dry country to the south and east, thinning out as the land rises
+  const dryPos = smoothstep(-40, 900, x) * 0.55 + smoothstep(0, 700, z) * 0.55;
+  const dryN = fbm2(x * 0.0011 + 31, z * 0.0011 - 17, 3) * 0.5 + 0.5;
+  o.desert = clamp(smoothstep(0.52, 0.86, dryN * 0.45 + dryPos * 0.72), 0, 1)
+           * (1 - smoothstep(140, 250, h));
+  // damp wooded country to the west and north
+  const wetN = fbm2(x * 0.0013 - 8, z * 0.0013 + 22, 3) * 0.5 + 0.5;
+  const wetPos = smoothstep(400, -700, x) * 0.5 + 0.5;
+  o.forest = clamp(smoothstep(0.48, 0.74, wetN * 0.6 + wetPos * 0.45), 0, 1)
+           * (1 - o.desert) * (1 - smoothstep(210, 330, h));
+  o.alpine = smoothstep(180, 330, h);
+  o.meadow = clamp(1 - o.desert - o.forest - o.alpine, 0, 1);
+  return o;
+}
+
 function bump(x, z, cx, cz, r) {
   const d = Math.hypot(x - cx, z - cz) / r;
   return d >= 1 ? 0 : Math.pow(Math.cos(d * Math.PI * 0.5), 2);
@@ -2583,16 +2652,42 @@ function baseHeight(x, z) {
   h += fbm2(x * 0.0034 + 11, z * 0.0034 - 4, 3) * 8.5;
   h += fbm2(x * 0.011 - 3, z * 0.011 + 7, 2) * 2.2;
 
-  const north = smoothstep(-760, -1010, z);
-  h += north * (ridged(x * 0.0017, z * 0.0017, 4) * 0.5 + 0.5) * 235;
-  const west = smoothstep(-800, -1020, x);
-  h += west * (ridged(x * 0.0019 + 5, z * 0.0019 + 9, 4) * 0.5 + 0.5) * 250;
-  const east = smoothstep(880, 1030, x);
-  h += east * (ridged(x * 0.0021 - 8, z * 0.0021 + 2, 3) * 0.5 + 0.5) * 180;
+  // the mountain walls, pushed out to the edges of the larger valley
+  const north = smoothstep(-1000, -1500, z);
+  h += north * (ridged(x * 0.0017, z * 0.0017, 4) * 0.5 + 0.5) * 300;
+  const west = smoothstep(-1060, -1520, x);
+  h += west * (ridged(x * 0.0019 + 5, z * 0.0019 + 9, 4) * 0.5 + 0.5) * 300;
+  const east = smoothstep(1420, 1620, x);
+  h += east * (ridged(x * 0.0021 - 8, z * 0.0021 + 2, 3) * 0.5 + 0.5) * 200;
 
-  h += bump(x, z, 648, -176, 132) * 38;      // the ridge the main line tunnels through      // the hill the tunnel goes through
+  /* The high range the mountain line climbs into: a real massif north of the
+     valley rather than a backdrop, with the summit reachable by rail. */
+  const massif = bump(x, z, 210, -1210, 600);
+  h += massif * (0.45 + 0.55 * (ridged(x * 0.0026 + 3, z * 0.0026 - 5, 4) * 0.5 + 0.5)) * 250;
+
+  h += bump(x, z, 648, -176, 132) * 38;      // the ridge the main line tunnels through
   h += bump(x, z, -760, 150, 190) * 78;      // the crag above Star Peak
-  h += bump(x, z, 250, -690, 240) * 54;
+  h += bump(x, z, 250, -690, 200) * 46;
+
+  /* Dunes in the dry country. Low, long and smooth, so it reads as desert
+     rather than as the same hills painted yellow. */
+  const bm = biomeMix(x, z, h);
+  if (bm.desert > 0.01) {
+    const dune = (ridged(x * 0.0042 + 17, z * 0.0016 - 9, 3) * 0.5 + 0.5);
+    h = lerp(h, h * 0.86 + 14 + dune * 34, bm.desert * 0.85);
+  }
+
+  /* Ravines. A ridged field inverted and thresholded gives narrow, steep-sided
+     canyons rather than broad valleys — which is what makes a bridge worth
+     building instead of an embankment. */
+  const rvPos = smoothstep(-520, 120, x) * smoothstep(700, 40, z) * smoothstep(-980, -520, z + 900);
+  if (rvPos > 0.01) {
+    const rv = ridged(x * 0.0032 - 21, z * 0.0032 + 14, 3) * 0.5 + 0.5;
+    // cut down towards a floor rather than by a fixed depth, so a ravine on
+    // already-low ground does not end up below the sea
+    const cut = smoothstep(0.58, 0.9, rv) * 96 * rvPos;
+    h = Math.max(h - cut, Math.min(h, WATER_Y + 4));
+  }
 
   // the bay in the south
   const bayEdge = 760 + fbm2(x * 0.0022, 3.7, 3) * 150;
@@ -2631,9 +2726,10 @@ function terrainNormal(x, z, e = 2.5, out) {
    hand, they fall out of the difference between the rail and the ground.      */
 
 const MAIN_CTRL = [
-  { x: 120, z: -620 }, { x: 380, z: -540 }, { x: 560, z: -380 }, { x: 665, z: -120 },
-  { x: 640, z: 180 }, { x: 440, z: 425 }, { x: 110, z: 545 }, { x: -215, z: 520 },
-  { x: -480, z: 350 }, { x: -625, z: 70 }, { x: -575, z: -235 }, { x: -320, z: -510 },
+  { x: 60, z: -820 }, { x: 430, z: -700 }, { x: 760, z: -520 }, { x: 1010, z: -280 },
+  { x: 1140, z: 40 }, { x: 1080, z: 380 }, { x: 800, z: 600 }, { x: 420, z: 700 },
+  { x: 40, z: 680 }, { x: -340, z: 560 }, { x: -620, z: 330 }, { x: -760, z: 20 },
+  { x: -700, z: -320 }, { x: -420, z: -640 },
 ];
 
 /* Branches: s0/s1 are fractions of the main line's length. `via` bulges out. */
@@ -2649,29 +2745,40 @@ const TUNNEL_HOOD = 13.5;
 
 /* Only the destination matters now: the junction positions are searched for at
    load time so that the line can actually leave the main line and come back. */
+const BRANCH_COUNT = 6;
 const BRANCH_DEF = [
   { id: 'farm', station: 'farm' },
   { id: 'mine', station: 'mine' },
   { id: 'bay',  station: 'bay'  },
   { id: 'peak', station: 'peak' },
+  { id: 'desert', station: 'desert' },
+  { id: 'summit', station: 'summit' },
 ];
 
 /* Stations. `on` names the segment; the anchor is the nearest point to (x,z).
    Everything a child needs to recognise the place is here: its picture, its
    cargo, the two words underneath and the sentence the game speaks. */
 const STATIONS = {
-  town: { id: 'town', on: 'main', x: -600, z: -60, name: 'Bramble Town', pic: 'p-town',
+  town: { id: 'town', on: 'main', x: -720, z: -140, name: 'Bramble Town', pic: 'p-town',
           cargo: 'p-mail', cargoName: 'post', side: 1 },
-  works: { id: 'works', on: 'main', x: 300, z: 490, name: 'Toybox Works', pic: 'p-toys',
+  works: { id: 'works', on: 'main', x: 220, z: 690, name: 'Toybox Works', pic: 'p-toys',
           cargo: 'p-toys', cargoName: 'toys', side: -1 },
-  farm: { id: 'farm', on: 'farm', x: 700, z: -655, name: 'Cloverfield Farm', pic: 'p-farm',
+  city: { id: 'city', on: 'main', x: 1115, z: 120, name: 'Coppergate City', pic: 'p-city',
+          cargo: 'p-parcel', cargoName: 'parcels', side: -1 },
+  forest: { id: 'forest', on: 'main', x: -690, z: 330, name: 'Pinewood Lodge', pic: 'p-forest',
+          cargo: 'p-timber', cargoName: 'timber', side: 1 },
+  farm: { id: 'farm', on: 'farm', x: 700, z: -790, name: 'Cloverfield Farm', pic: 'p-farm',
           cargo: 'p-milk', cargoName: 'milk', side: 1 },
-  mine: { id: 'mine', on: 'mine', x: 870, z: 105, name: 'Coalhill Mine', pic: 'p-mine',
+  mine: { id: 'mine', on: 'mine', x: 700, z: 120, name: 'Coalhill Mine', pic: 'p-mine',
           cargo: 'p-coal', cargoName: 'coal', side: -1 },
-  bay:  { id: 'bay', on: 'bay', x: 210, z: 772, name: 'Herring Bay', pic: 'p-harbour',
+  bay:  { id: 'bay', on: 'bay', x: 150, z: 940, name: 'Herring Bay', pic: 'p-harbour',
           cargo: 'p-fish', cargoName: 'fish', side: -1 },
-  peak: { id: 'peak', on: 'peak', x: -840, z: -120, name: 'Star Peak', pic: 'p-peak',
+  peak: { id: 'peak', on: 'peak', x: -1030, z: -160, name: 'Star Peak', pic: 'p-peak',
           cargo: 'p-stars', cargoName: 'stars', side: 1 },
+  desert: { id: 'desert', on: 'desert', x: 1290, z: 620, name: 'Redsand Halt', pic: 'p-desert',
+          cargo: 'p-water', cargoName: 'water', side: -1 },
+  summit: { id: 'summit', on: 'summit', x: 330, z: -1000, name: 'Eagle Pass', pic: 'p-summit',
+          cargo: 'p-post', cargoName: 'mountain post', side: 1 },
 };
 
 const STEP = 2.0;                    // metres between resampled track points
@@ -2783,12 +2890,12 @@ class Track {
       let best = null;
 
       for (let s0 = 0; s0 < L; s0 += 7) {
-        for (let span = 0.065 * L; span <= 0.17 * L; span += 0.012 * L) {
+        for (let span = 0.055 * L; span <= 0.135 * L; span += 0.010 * L) {
           const s1 = mod(s0 + span, L);
           // two branches must never share a stretch of the main line
           const clash = taken.some(u =>
             inArc(s0, u.a, u.len) || inArc(s1, u.a, u.len) ||
-            inArc(u.a, mod(s0 - 130, L), span + 260));
+            inArc(u.a, mod(s0 - 90, L), span + 180));
           if (clash) continue;
 
           const j0 = this._mainAt(s0), j1 = this._mainAt(s1);
@@ -2812,7 +2919,7 @@ class Track {
         }
       }
       if (!best) continue;
-      taken.push({ a: mod(best.s0 - 130, L), len: best.span + 260 });
+      taken.push({ a: mod(best.s0 - 90, L), len: best.span + 180 });
 
       const { s0, s1, j0, j1, t0, t1, sA, sB } = best;
       const r0 = { x: -t0.z, z: t0.x }, r1 = { x: -t1.z, z: t1.x };
@@ -2839,6 +2946,8 @@ class Track {
       this.branches.push(seg);
     }
     this.branches.sort((a, b) => a.s0 - b.s0);
+    // a stable index for every line, so the trail can record which one it is on
+    this.segOrder = ['main', ...this.branches.map(b => b.id)];
 
     /* At a turnout the branch runs a few metres from the main line for a
        hundred metres or so. Laying a full ballast shoulder and a set of
@@ -2860,6 +2969,16 @@ class Track {
         }
         b.shared[i] = Math.sqrt(best) < 7.5 ? 1 : 0;
       }
+      /* Backing in at the far end, the branch leaves on the other hand: the
+         direction of travel has reversed, so left and right swap over. Work it
+         out from the geometry rather than by negating b.side, because the two
+         junctions are at different places on the loop. */
+      const i1 = Math.round(mod(b.s1 / main.step, main.pts.length)) % main.pts.length;
+      const mp = main.pts[i1];
+      const vx = -mp.tx, vz = -mp.tz;              // travel direction, reversing
+      const rx = -vz, rz = vx;
+      const q = b.pts[Math.max(0, b.pts.length - 30)];
+      b.sideBack = ((q.x - mp.x) * rx + (q.z - mp.z) * rz) > 0 ? 1 : -1;
     }
   }
 
@@ -3347,9 +3466,9 @@ class Track {
       const x = p.x + (-p.tz) * (u || 0), z = p.z + p.tx * (u || 0);
       const h0 = baseHeight(x, z);
       this.corridor(x, z, cor);
-      if (cor.d >= 62) return h0;
+      if (cor.d >= 80) return h0;
       const target = cor.y - 1.55;
-      const k = smoothstep(62, 6, cor.d) * cor.carve;
+      const k = smoothstep(80, 6, cor.d) * cor.carve;
       return lerp(h0, h0 > cor.y ? Math.min(h0, target) : Math.max(h0, target), k);
     };
     /* …and the portal has to stand where the ground is clear right across the
@@ -3371,19 +3490,28 @@ class Track {
       // Walk out from each end until the hillside closes over the rails. That
       // is the mouth, and that is where the portal has to stand — put it
       // anywhere else and the train drives into a bank with a wall behind it.
+      /* Walk out until the ground closes into the opening, and stand the wall
+         one sample short of that. On the steepest ground there may be no clear
+         sample at all — the line is in a covered way rather than a cutting that
+         ends in a portal — in which case there is nothing to face and the bore
+         simply runs on into the hill. Building a facade there produces a wall
+         standing in forty metres of earth. */
       const mouth = (start, dir) => {
-        for (let k = -14; k <= 30; k++) {
+        let sawClear = false;
+        for (let k = -30; k <= 44; k++) {
           const j = at(start + dir * k);
-          // stand the wall one sample short of the point where the ground first
-          // rises into the opening, so the arch is clear all the way down to
-          // the ballast and the hill closes over immediately behind it
-          if (blockedAt(seg, j) > 0.15) return at(start + dir * (k - 1));
+          const bl = blockedAt(seg, j);
+          if (bl <= 0.15) { sawClear = true; continue; }
+          if (sawClear) return at(start + dir * (k - 1));
         }
-        return at(start + dir * TUNNEL_INSET);
+        return null;
       };
+      const mouthOr = (start, dir, fb) => { const m2 = mouth(start, dir); return m2 === null ? fb : m2; };
       const mid = (t.i0 + t.i1) >> 1;
-      const p0 = Math.min(mouth(t.i0, 1), mid);
-      const p1 = Math.max(mouth(t.i1, -1), mid + 1);
+      const m0 = mouth(t.i0, 1), m1 = mouth(t.i1, -1);
+      const p0 = Math.min(m0 === null ? at(t.i0 + TUNNEL_INSET) : m0, mid);
+      const p1 = Math.max(m1 === null ? at(t.i1 - TUNNEL_INSET) : m1, mid + 1);
+      t.facade = [m0 === null ? null : p0, m1 === null ? null : p1];
       t.p0 = p0; t.p1 = p1;
 
       const path = [];
@@ -3418,7 +3546,8 @@ class Track {
         this.group.add(m);
       }
 
-      for (const end of [p0, p1]) {
+      for (const end of t.facade) {
+        if (end === null) continue;
         const p = seg.pts[clamp(end, 0, n - 1)];
         // a frame whose +w always points out of the hill, whichever mouth this is
         const sgn = end === p0 ? -1 : 1;
@@ -3439,8 +3568,8 @@ class Track {
           const j = at(end + (end === p0 ? 1 : -1) * k);
           face = Math.max(face, baseHeight(seg.pts[j].x, seg.pts[j].z) - seg.pts[j].y);
         }
-        const TOP = clamp(face + 2.6, 10.5, 26);
-        const WW = clamp(TOP * 1.08, 12.5, 22);
+        const TOP = clamp(face + 2.6, 10.5, 34);
+        const WW = clamp(TOP * 1.02, 12.5, 26);
         const BOT = -3.4, FW = 0.95, BW = -0.75;
 
         // the wall itself: two side panels and a strip filling in over the arch
@@ -3641,7 +3770,7 @@ class Track {
    goes flat green — comes out of the paint and a tiled detail normal, for a
    fixed cost of one draw call and two textures. */
 
-const HG_RES = 513;                             // height grid, 3.9 m spacing
+const HG_RES = 641;                             // height grid, 5.3 m spacing
 
 class World {
   static id = 'world';
@@ -3685,7 +3814,7 @@ class World {
             target = h > cor.y ? cor.y - 1.55 + over / batter      // cutting
                                : cor.y - 1.55 - over / batter;     // embankment
           }
-          const k = smoothstep(62, 6, cor.d) * cor.carve;
+          const k = smoothstep(80, 6, cor.d) * cor.carve;
           const blended = h > cor.y ? Math.min(h, target) : Math.max(h, target);
           h = lerp(h, blended, k);
         }
@@ -4120,6 +4249,346 @@ class World {
     this.terrainMat.dispose(); this.waterMat.dispose();
   }
 }
+/*──────────────────────── §7b  COPPERGATE CITY ──────────────────────────────*/
+/* A procedural city, adapted from the pipeline in josauder/procedural_city_generation
+   (MPL-2.0), which is itself built on Parish & Müller, "Procedural Modeling of
+   Cities", SIGGRAPH 2001. Their sequence is: grow a road graph from an axiom
+   under per-region growth rules, weighted by a population-density field; extract
+   the cycles as blocks; subdivide blocks into lots; extrude one building per lot
+   with height and materials taken from the density.
+
+   What is kept here is the part that makes a road network look grown rather than
+   drawn: the three checks applied to every suggested vertex — snap to a nearby
+   existing one, extend to an intersection you nearly touched, truncate at one you
+   crossed. Without those you get a lattice; with them you get junctions,
+   irregular blocks and streets that meet at angles.
+
+   What is simplified is the block stage. Extracting cycles from the graph by
+   sorting connected triples by angle is elegant but it is a lot of machinery for
+   a toy railway, so buildings are placed along street frontages instead, on both
+   sides, with an occupancy grid to stop them overlapping. The result reads the
+   same from a passing train — streets lined with buildings, open ground behind
+   them — at a fraction of the cost. Density still drives everything: tall towers
+   downtown falling away to houses at the edge. */
+
+const CITY_R = 470;                 // how far the built-up area reaches
+const ROAD_W = 9.5, LANE_W = 6.0;
+
+class City {
+  static id = 'city';
+  static deps = ['render', 'track', 'world'];
+  static label = 'Building the city';
+
+  async init(ctx) {
+    this.ctx = ctx;
+    this.track = ctx.get('track');
+    this.world = ctx.get('world');
+    this.rng = mulberry(CFG.seed ^ 0xC17E);
+    this.group = new THREE.Group();
+    ctx.scene.add(this.group);
+
+    const st = this.track.stations.city;
+    if (!st) return;
+    // sit the centre back from the station so the line runs along the edge of
+    // town rather than straight through the middle of it
+    this.cx = st.px - st.tz * 210;
+    this.cz = st.pz + st.tx * 210;
+    this.cy = this.world.height(this.cx, this.cz);
+
+    this._growRoads();
+    this._buildRoadMesh();
+    this._buildBuildings();
+    ctx.events.on('world:night', () => this._setNight(WORLD.night));
+    this._setNight(WORLD.night);
+  }
+
+  /* population density: 1 downtown, falling to 0 at the edge, roughened so the
+     skyline is not a perfect cone */
+  density(x, z) {
+    const d = Math.hypot(x - this.cx, z - this.cz) / CITY_R;
+    const n = fbm2(x * 0.0042 + 11, z * 0.0042 - 6, 3) * 0.5 + 0.5;
+    return clamp((1 - smoothstep(0.12, 1.0, d)) * (0.66 + n * 0.62), 0, 1);
+  }
+
+  /* is this a sensible place for a street at all? */
+  _buildable(x, z) {
+    if (Math.hypot(x - this.cx, z - this.cz) > CITY_R) return false;
+    const h = this.world.height(x, z);
+    if (h < WATER_Y + 2.5) return false;
+    if (this.world.slope(x, z) > 0.42) return false;
+    const cor = this._cor || (this._cor = { d: 0, y: 0, carve: 1 });
+    this.track.corridor(x, z, cor);
+    if (cor.d < 26) return false;                 // keep clear of the railway
+    return true;
+  }
+
+  /*── the road graph ────────────────────────────────────────────────────*/
+  _growRoads() {
+    const r = this.rng;
+    this.verts = [];
+    this.edges = [];
+    const SNAP = 26, NEAR = 34;
+
+    const addVert = (x, z) => { this.verts.push({ x, z }); return this.verts.length - 1; };
+    const nearest = (x, z, within) => {
+      let bi = -1, bd = within * within;
+      for (let i = 0; i < this.verts.length; i++) {
+        const v = this.verts[i];
+        const d2 = (v.x - x) * (v.x - x) + (v.z - z) * (v.z - z);
+        if (d2 < bd) { bd = d2; bi = i; }
+      }
+      return bi;
+    };
+    const hasEdge = (a, b) => this.edges.some(e => (e.a === a && e.b === b) || (e.a === b && e.b === a));
+    const addEdge = (a, b, major) => {
+      if (a === b || hasEdge(a, b)) return;
+      this.edges.push({ a, b, major });
+    };
+    // segment intersection, used by two of the three checks
+    const cross = (p, p2, q, q2) => {
+      const rx = p2.x - p.x, rz = p2.z - p.z, sx = q2.x - q.x, sz = q2.z - q.z;
+      const den = rx * sz - rz * sx;
+      if (Math.abs(den) < 1e-9) return null;
+      const t = ((q.x - p.x) * sz - (q.z - p.z) * sx) / den;
+      const u = ((q.x - p.x) * rz - (q.z - p.z) * rx) / den;
+      if (t < 0.001 || t > 0.999 || u < 0.001 || u > 0.999) return null;
+      return { t, x: p.x + rx * t, z: p.z + rz * t };
+    };
+
+    // the axiom: a few avenues radiating from the centre
+    const centre = addVert(this.cx, this.cz);
+    const front = [];
+    const SPOKES = 5;
+    for (let i = 0; i < SPOKES; i++) {
+      const a = i / SPOKES * TAU + r() * 0.5;
+      front.push({ v: centre, dx: Math.cos(a), dz: Math.sin(a), major: true, life: 26 });
+    }
+
+    let guard = 0;
+    while (front.length && guard++ < 2600) {
+      const f = front.shift();
+      if (f.life <= 0) continue;
+      const from = this.verts[f.v];
+      const d = this.density(from.x, from.z);
+      const step = f.major ? 78 - d * 22 : 52 - d * 12;
+
+      /* the growth rule for this spot. Radial in the middle where the avenues
+         run out from the centre, a grid through the main body of the town,
+         and looser at the fringe. */
+      const rad = Math.hypot(from.x - this.cx, from.z - this.cz) / CITY_R;
+      const rule = rad < 0.3 ? 'radial' : rad < 0.78 ? 'grid' : 'organic';
+
+      const dirs = [];
+      if (rule === 'radial') {
+        dirs.push({ dx: f.dx, dz: f.dz, major: f.major });
+      } else if (rule === 'grid') {
+        dirs.push({ dx: f.dx, dz: f.dz, major: f.major });
+        if (r() < (f.major ? 0.42 : 0.30))
+          dirs.push({ dx: -f.dz, dz: f.dx, major: false });
+        if (r() < (f.major ? 0.42 : 0.30))
+          dirs.push({ dx: f.dz, dz: -f.dx, major: false });
+      } else {
+        const w = (r() - 0.5) * 0.7;
+        const cw = Math.cos(w), sw = Math.sin(w);
+        dirs.push({ dx: f.dx * cw - f.dz * sw, dz: f.dx * sw + f.dz * cw, major: false });
+        if (r() < 0.22) dirs.push({ dx: -f.dz, dz: f.dx, major: false });
+      }
+
+      for (const dir of dirs) {
+        let nx = from.x + dir.dx * step, nz = from.z + dir.dz * step;
+        // population density decides whether the street gets built at all
+        if (r() > 0.22 + this.density(nx, nz) * 0.94) continue;
+        if (!this._buildable(nx, nz)) continue;
+
+        // check 1 — near an existing junction, join it instead of making a new one
+        let target = nearest(nx, nz, SNAP);
+
+        // check 3 — crossing an existing street: stop at the crossing
+        if (target < 0) {
+          let best = null;
+          for (const e of this.edges) {
+            const hit = cross(from, { x: nx, z: nz }, this.verts[e.a], this.verts[e.b]);
+            if (hit && (!best || hit.t < best.t)) best = hit;
+          }
+          if (best) { nx = best.x; nz = best.z; target = nearest(nx, nz, SNAP); }
+        }
+
+        // check 2 — stopping just short of a street: run on and meet it
+        if (target < 0) {
+          let best = null;
+          const ex = nx + dir.dx * NEAR, ez = nz + dir.dz * NEAR;
+          for (const e of this.edges) {
+            const hit = cross({ x: nx, z: nz }, { x: ex, z: ez }, this.verts[e.a], this.verts[e.b]);
+            if (hit && (!best || hit.t < best.t)) best = hit;
+          }
+          if (best) { nx = best.x; nz = best.z; target = nearest(nx, nz, SNAP); }
+        }
+
+        const vi = target >= 0 ? target : addVert(nx, nz);
+        addEdge(f.v, vi, f.major && dir.major);
+        if (target < 0 && f.life > 1) {
+          front.push({ v: vi, dx: dir.dx, dz: dir.dz, major: f.major && dir.major, life: f.life - 1 });
+          // a major road occasionally seeds a minor grid off itself
+          if (f.major && r() < 0.5)
+            front.push({ v: vi, dx: -dir.dz, dz: dir.dx, major: false, life: 7 });
+        }
+      }
+    }
+  }
+
+  /*── the streets themselves ────────────────────────────────────────────*/
+  _buildRoadMesh() {
+    const mb = new MB();
+    const tar = new THREE.Color('#4A4E55'), line = new THREE.Color('#C9C3AE');
+    for (const e of this.edges) {
+      const a = this.verts[e.a], b = this.verts[e.b];
+      const dx = b.x - a.x, dz = b.z - a.z;
+      const len = Math.hypot(dx, dz);
+      if (len < 4) continue;
+      const ux = dx / len, uz = dz / len;
+      const w = (e.major ? ROAD_W : LANE_W) / 2;
+      const px = -uz * w, pz = ux * w;
+      const ya = this.world.height(a.x, a.z) + 0.12, yb = this.world.height(b.x, b.z) + 0.12;
+      mb.quad(
+        new THREE.Vector3(a.x + px, ya, a.z + pz),
+        new THREE.Vector3(b.x + px, yb, b.z + pz),
+        new THREE.Vector3(b.x - px, yb, b.z - pz),
+        new THREE.Vector3(a.x - px, ya, a.z - pz), tar, 1);
+      if (e.major && len > 26) {
+        const cw = 0.5;
+        mb.quad(
+          new THREE.Vector3(a.x - uz * cw, ya + 0.03, a.z + ux * cw),
+          new THREE.Vector3(b.x - uz * cw, yb + 0.03, b.z + ux * cw),
+          new THREE.Vector3(b.x + uz * cw, yb + 0.03, b.z - ux * cw),
+          new THREE.Vector3(a.x + uz * cw, ya + 0.03, a.z - ux * cw), line, 1);
+      }
+    }
+    if (mb.empty) return;
+    const m = new THREE.Mesh(mb.geometry(), MAT.solid);
+    m.receiveShadow = true; m.matrixAutoUpdate = false;
+    this.group.add(m);
+  }
+
+  /*── lots and buildings ────────────────────────────────────────────────*/
+  _buildBuildings() {
+    const r = this.rng;
+    const mb = new MB(), glow = new MB();
+    const occ = new Map();
+    const GRID = 16;
+    const key = (x, z) => ((x / GRID) | 0) + ':' + ((z / GRID) | 0);
+    const free = (x, z, rad) => {
+      const n = Math.ceil(rad / GRID);
+      const gx = (x / GRID) | 0, gz = (z / GRID) | 0;
+      for (let i = -n; i <= n; i++) for (let j = -n; j <= n; j++)
+        if (occ.has((gx + i) + ':' + (gz + j))) return false;
+      return true;
+    };
+    const claim = (x, z, rad) => {
+      const n = Math.ceil(rad / GRID);
+      const gx = (x / GRID) | 0, gz = (z / GRID) | 0;
+      for (let i = -n; i <= n; i++) for (let j = -n; j <= n; j++) occ.set((gx + i) + ':' + (gz + j), 1);
+    };
+
+    const wallCols = ['#C8B79B', '#B7A88E', '#9E9384', '#C2A78B', '#8E8C86', '#A98F76'];
+    const towerCols = ['#7C8B9A', '#6E7F90', '#8A97A3', '#5F7183'];
+    let built = 0;
+
+    for (const e of this.edges) {
+      const a = this.verts[e.a], b = this.verts[e.b];
+      const dx = b.x - a.x, dz = b.z - a.z;
+      const len = Math.hypot(dx, dz);
+      if (len < 22) continue;
+      const ux = dx / len, uz = dz / len;
+      const half = (e.major ? ROAD_W : LANE_W) / 2;
+
+      for (const side of [-1, 1]) {
+        let t = 8 + r() * 6;
+        while (t < len - 8 && built < 900) {
+          const d0 = this.density(a.x + ux * t, a.z + uz * t);
+          // frontage and depth of this lot, both larger downtown
+          const front = 13 + r() * 12 + d0 * 12;
+          const depth = 12 + r() * 10 + d0 * 16;
+          const setback = half + 3.2 + r() * 2.4;
+          const mx = a.x + ux * (t + front / 2) + (-uz) * side * (setback + depth / 2);
+          const mz = a.z + uz * (t + front / 2) + (ux) * side * (setback + depth / 2);
+          t += front + 2 + r() * 4;
+
+          if (!this._buildable(mx, mz)) continue;
+          const rad = Math.max(front, depth) * 0.5;
+          if (!free(mx, mz, rad * 0.62)) continue;
+
+          const d = this.density(mx, mz);
+          const g = this.world.height(mx, mz);
+          const ang = Math.atan2(ux, uz);
+
+          /* Height from the density field, which is what gives a city a shape:
+             towers in the middle, terraces at the edge. */
+          const tower = d > 0.62 && r() < (d - 0.62) * 2.6;
+          const floors = tower ? 6 + Math.round(r() * 22 * d)
+                               : 1 + Math.round(r() * 2 + d * 3);
+          const fh = tower ? 3.4 : 3.0;
+          const h = floors * fh;
+          const col = new THREE.Color(tower ? towerCols[(r() * towerCols.length) | 0]
+                                            : wallCols[(r() * wallCols.length) | 0]);
+
+          mb.box(mx, g + h / 2, mz, front * 0.9, h, depth * 0.86, col, ang,
+                 [1, 1, 0.93, 0.93, 1.06, 0.8]);
+          // a stepped-back upper section on the taller ones
+          if (tower && floors > 12) {
+            const h2 = h * (0.16 + r() * 0.2);
+            mb.box(mx, g + h + h2 / 2, mz, front * 0.62, h2, depth * 0.58, col, ang,
+                   [1, 1, .93, .93, 1.1, .8]);
+          }
+          if (!tower) {
+            // a pitched roof, so the low-rise reads as houses
+            const rh = Math.min(front, depth) * 0.22;
+            mb.box(mx, g + h + rh / 2, mz, front * 0.95, rh, depth * 0.9,
+                   new THREE.Color('#7C4A3E'), ang, [1, 1, .9, .9, 1.08, .8]);
+          }
+
+          // lit windows, in rows, facing the street
+          const rows = Math.min(floors, 9);
+          for (let f2 = 0; f2 < rows; f2++) {
+            const wy = g + (f2 + 0.62) * (h / floors);
+            const cols2 = Math.max(2, Math.round(front / 5));
+            for (let c = 0; c < cols2; c++) {
+              if (r() < 0.32) continue;
+              const off = (c / (cols2 - 1) - 0.5) * front * 0.68;
+              const fx = mx + ux * off + (-uz) * side * (-(depth * 0.44));
+              const fz = mz + uz * off + (ux) * side * (-(depth * 0.44));
+              glow.box(fx, wy, fz, 1.5, 1.5, 0.25, new THREE.Color(P.windowGlow), ang);
+            }
+          }
+          claim(mx, mz, rad * 0.62);
+          built++;
+        }
+      }
+    }
+    this.buildingCount = built;
+
+    if (!mb.empty) {
+      const m = new THREE.Mesh(mb.geometry(), MAT.solid);
+      m.castShadow = true; m.receiveShadow = true; m.matrixAutoUpdate = false;
+      this.group.add(m);
+    }
+    if (!glow.empty) {
+      this.windows = new THREE.Mesh(glow.geometry(), MAT.glow.clone());
+      this.windows.matrixAutoUpdate = false;
+      this.group.add(this.windows);
+    }
+  }
+
+  /* the windows only really earn their keep after dark */
+  _setNight(on) {
+    if (!this.windows) return;
+    this.windows.material.opacity = on ? 1 : 0.34;
+    this.windows.material.transparent = !on;
+  }
+
+  dispose() {
+    this.group.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+  }
+}
 /*──────────────────── §4d  WHAT LIVES ON THE GROUND ─────────────────────────*/
 /* Trees, rocks and tufts go down as instanced meshes; every building in the
    valley is one merged, vertex-coloured mesh per place. The station signboards
@@ -4235,6 +4704,17 @@ class Props {
                i % 2 ? hex('cShade') : hex('cMid'), 'y', 2);
         y += hh * 0.66; rr *= 0.74;
       }
+    } else if (kind === 3) {                            // saguaro, for the dry country
+      const th = r.range(4.2, 6.8);
+      const green = new THREE.Color('#4E7F49');
+      mb.cyl(0, th / 2, 0, 0.44, 0.52, th, 7, green, 'y', 3, green);
+      mb.blob(0, th, 0, 0.46, 0.4, 0.46, 2, 7, green, 0, seed);
+      for (const s2 of [-1, 1]) {
+        if (r() < 0.3) continue;
+        const y0 = th * r.range(0.34, 0.56), arm = r.range(1.1, 1.9);
+        mb.cyl(s2 * arm * 0.5, y0, 0, 0.3, 0.3, arm, 6, green, 'x', 3, green);
+        mb.cyl(s2 * arm, y0 + arm * 0.55, 0, 0.3, 0.32, arm * 1.1, 6, green, 'y', 3, green);
+      }
     } else {                                            // slender, autumn-touched
       const th = r.range(3.2, 4.6);
       mb.cyl(0, th / 2, 0, 0.14, 0.26, th, 5, new THREE.Color('#C6BCA8'), 'y', 0);
@@ -4251,7 +4731,7 @@ class Props {
   _buildTrees() {
     const r = this.rng, W = CFG.world / 2 - 40;
     const MAX = QUALITY[2].trees;
-    const slots = [[], [], []];
+    const slots = [[], [], [], []];
     const cor = { d: 0, y: 0 };
     let guard = 0;
     while (slots[0].length + slots[1].length + slots[2].length < MAX && guard++ < MAX * 14) {
@@ -4270,19 +4750,34 @@ class Props {
          onto the distant hills, and every tree saved out there buys one that can
          be seen from the cab. */
       const nearLine = smoothstep(430, 70, cor.d);
-      if (r() > (0.10 + dense * 0.95) * (0.34 + nearLine * 0.66)) continue;
+      const bmDense = biomeMix(x, z, h);
+      const thick = 1 + bmDense.forest * 1.5;
+      if (r() > (0.10 + dense * 0.95) * (0.34 + nearLine * 0.66) * thick) continue;
       // conifers take the high ground, but not exclusively — a bare valley
       // floor of nothing but oaks looks planted rather than grown
+      /* What grows here depends on the country. Sand gets saguaro and almost
+         nothing else, forest gets a dense conifer stand, the high ground gets
+         the tree line, and the meadow keeps its mix of broadleaf. */
+      const bm = biomeMix(x, z, h);
+      if (bm.alpine > 0.72) continue;                  // above the tree line
       const alt = smoothstep(55, 150, h);
       const q = r();
-      const k = q < 0.30 + alt * 0.44 ? 1 : (q < 0.82 ? 0 : 2);
+      let k;
+      if (bm.desert > 0.5) {
+        if (r() > 0.34) continue;                      // the desert is sparse
+        k = 3;
+      } else if (bm.forest > 0.55) {
+        k = q < 0.72 ? 1 : (q < 0.94 ? 0 : 2);         // conifer country
+      } else {
+        k = q < 0.30 + alt * 0.44 ? 1 : (q < 0.82 ? 0 : 2);
+      }
       slots[k].push({ x, y: h - 0.25, z, s: r.range(0.72, 1.5), a: r() * TAU, t: r() });
     }
 
     this.treeMeshes = [];
     const m4 = new THREE.Matrix4(), qt = new THREE.Quaternion(),
           pv = new THREE.Vector3(), sv = new THREE.Vector3();
-    for (let k = 0; k < 3; k++) {
+    for (let k = 0; k < 4; k++) {
       const list = slots[k];
       if (!list.length) continue;
       const geo = this._treeGeometry(k, 500 + k * 91);
@@ -5201,6 +5696,8 @@ class Train {
     this.inTunnel = false;
     this.pendingBranch = null;
     this.takeBranch = false;
+    this.tailBranch = null;
+    this.tailTakeBranch = false;
     this.branchSeg = null;
     this._sinceJoint = 0;
     this._sinceChuff = 0;
@@ -5208,8 +5705,15 @@ class Train {
     // trail: 1400 samples at ≥0.32 m gives 450 m of history, far more than the
     // longest train, and it is what lets the back wagons still be on the main
     // line while the engine is already round the curve of a branch
+    /* The trail is the route the train is standing on. Each sample records not
+       only where it is but which line it is on and how far along, because when
+       the train sets back the *rear* leads — and at a trailing junction the rear
+       can turn onto a line the engine has never been down. Without the line
+       recorded there is nothing to place the wagons against. */
     this.trailN = 2600;
     this.trail = new Float32Array(this.trailN * 4);   // x,y,z,cumulative
+    this.trailSegI = new Uint8Array(this.trailN);     // which line
+    this.trailS = new Float32Array(this.trailN);      // how far along it
     this.trailHead = 0;
     this.trailCount = 0;
 
@@ -5499,7 +6003,7 @@ class Train {
       if (this.seg === 'main') sq = mod(sq, this.track.mainLen);
       else sq = Math.max(0, sq);
       this.track.sample(this.seg, sq, o);
-      this._pushTrail(o.x, o.y + CFG.railTop, o.z, (N - i) * 0.4, true);
+      this._pushTrail(o.x, o.y + CFG.railTop, o.z, (N - i) * 0.4, true, this.segIndex(this.seg), sq);
     }
     /* Continue counting from where the prefill left off. Resetting dist to zero
        here puts a cliff in the trail's distance axis: the newest sample says
@@ -5510,7 +6014,10 @@ class Train {
     this._place(true);
   }
 
-  _pushTrail(x, y, z, cum, force) {
+  segIndex(id) { return Math.max(0, this.track.segOrder.indexOf(id)); }
+  segById(i) { return this.track.segOrder[i] || 'main'; }
+
+  _pushTrail(x, y, z, cum, force, segI, sAt) {
     if (!force && this.trailCount > 0) {
       const h = (this.trailHead - 1 + this.trailN) % this.trailN;
       const dx = x - this.trail[h * 4], dy = y - this.trail[h * 4 + 1], dz = z - this.trail[h * 4 + 2];
@@ -5518,8 +6025,126 @@ class Train {
     }
     const i = this.trailHead;
     this.trail[i * 4] = x; this.trail[i * 4 + 1] = y; this.trail[i * 4 + 2] = z; this.trail[i * 4 + 3] = cum;
+    this.trailSegI[i] = segI === undefined ? this.segIndex(this.seg) : segI;
+    this.trailS[i] = sAt === undefined ? this.s : sAt;
     this.trailHead = (i + 1) % this.trailN;
     if (this.trailCount < this.trailN) this.trailCount++;
+  }
+
+  /* Write a sample onto the *old* end of the trail. Setting back extends the
+     route backwards from the rear of the train, which is the end that is
+     leading and therefore the end that chooses at a junction. */
+  _prependTrail(x, y, z, cum, segI, sAt) {
+    const i = (this.trailHead - this.trailCount - 1 + this.trailN * 2) % this.trailN;
+    this.trail[i * 4] = x; this.trail[i * 4 + 1] = y; this.trail[i * 4 + 2] = z; this.trail[i * 4 + 3] = cum;
+    this.trailSegI[i] = segI; this.trailS[i] = sAt;
+    if (this.trailCount < this.trailN) this.trailCount++;
+    else this.trailHead = (this.trailHead - 1 + this.trailN) % this.trailN;
+  }
+
+  _oldestIndex() { return (this.trailHead - this.trailCount + this.trailN * 2) % this.trailN; }
+
+  /* Setting back, anything older than the rear of the train is not route any
+     more — it is where the train happens to have been. Keeping it would force
+     the train to retrace its own steps and make the points at a trailing
+     junction meaningless, so it is thrown away and the rear lays fresh trail
+     wherever the points send it. */
+  _trimBehindRear() {
+    /* Trim to a looser mark than the one the tail extends to. Trim and extend
+       to the same point and they fight: the tail lays a sample just past the
+       rear, the trim takes it straight back off, and the rear crosses the same
+       junction over and over — spending the points on the first crossing and
+       running through on the main line for every one after. */
+    const need = this.frontDist - this.length - 10;
+    while (this.trailCount > 3) {
+      const oi = this._oldestIndex();
+      if (this.trail[oi * 4 + 3] >= need) break;
+      this.trailCount--;
+    }
+  }
+
+  /* And on pulling away forwards again, anything in front of the engine is
+     stale — the train may have backed onto a different line since. */
+  _trimAheadOfEngine() {
+    while (this.trailCount > 3) {
+      const ni = (this.trailHead - 1 + this.trailN) % this.trailN;
+      if (this.trail[ni * 4 + 3] <= this.frontDist + 0.5) break;
+      this.trailHead = ni; this.trailCount--;
+    }
+  }
+
+  /* Walk the rear of the train back along the rails, laying trail as it goes.
+     This is where setting back through a trailing junction happens: the rear
+     reaches the points, and whichever way they are set is the way the whole
+     train follows. */
+  _extendTail(ctx) {
+    const L = this.track.mainLen;
+    const need = this.frontDist - this.length - 5;
+    let guard = 0;
+    const o = this._tailSmp || (this._tailSmp = {});
+    while (this.trailCount > 1 && guard++ < 400) {
+      const oi = this._oldestIndex();
+      if (this.trail[oi * 4 + 3] <= need) break;
+      let segId = this.segById(this.trailSegI[oi]);
+      let sAt = this.trailS[oi];
+      const cum = this.trail[oi * 4 + 3] - 0.4;
+
+      const before = sAt;
+      sAt -= 0.4;
+      if (segId === 'main') {
+        // a branch trails into the main line here; if the points are set for it,
+        // the rear runs up the branch from its far end
+        let took = null;
+        for (const b of this.track.branches) {
+          if (this._crossedBack(before, sAt, b.s1, L)) {
+            if (this.tailTakeBranch && this.tailBranch === b) took = b;
+            ctx.events.emit('train:switched', { branch: b, took: !!took, reversing: true });
+            this.tailBranch = null; this.tailTakeBranch = false;
+            break;
+          }
+        }
+        if (took) {
+          const over = (before - sAt) - mod(before - took.s1, L);
+          segId = took.id; sAt = took.len - over;
+          this.audio.clank();
+        } else sAt = mod(sAt, L);
+      } else {
+        const b = this.track.segs[segId];
+        if (sAt < 0) {
+          const over = -sAt;
+          segId = 'main'; sAt = mod(b.s0 - over, L);
+          this.audio.clank();
+        }
+      }
+      this.track.sample(segId, sAt, o);
+      this._prependTrail(o.x, o.y + CFG.railTop, o.z, cum, this.segIndex(segId), sAt);
+    }
+  }
+
+  _crossedBack(a, b, target, L) {
+    if (b >= a) return false;
+    const ta = mod(a - target, L);
+    return ta >= 0 && ta < (a - b);
+  }
+
+  /* Which line the engine is standing on, read back off the trail. Setting
+     back, the rear is the cursor being integrated, so the engine's own
+     position has to be looked up rather than stepped. */
+  _headFromTrail() {
+    const n = this.trailCount;
+    if (n < 2) return;
+    const newest = (this.trailHead - 1 + this.trailN) % this.trailN;
+    const idx = k => (newest - k + this.trailN * 2) % this.trailN;
+    let lo = 0, hi = n - 1;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (this.trail[idx(mid) * 4 + 3] > this.frontDist) lo = mid + 1; else hi = mid;
+    }
+    const i = idx(lo);
+    const segId = this.segById(this.trailSegI[i]);
+    this.seg = segId;
+    this.s = this.trailS[i];
+    this.branchSeg = segId === 'main' ? null : this.track.segs[segId];
   }
 
   /* position `back` metres behind the head, along the path actually travelled */
@@ -5572,16 +6197,18 @@ class Train {
     if (nd === this.dir) return;
     if (this.speed > 1.2) return;                 // no slamming it into reverse
     this.dir = nd;
+    if (nd > 0) this._trimAheadOfEngine();
     this.setThrottle(0);
     this.ctx.events.emit('train:directionSet', { dir: nd });
     this.audio.clank();
   }
 
-  /* How far back the trail still goes — you cannot set back past where the
-     history runs out, which in practice means back to where you started. */
+  /* The train can set back as far as it likes: the rear lays fresh route as it
+     goes, so there is no history to run out of. Kept as a reading for the tests
+     and for anything that wants to know how much recorded path is behind. */
   get reverseRoom() {
     if (this.trailCount < 2) return 0;
-    const oldest = (this.trailHead - this.trailCount + this.trailN * 2) % this.trailN;
+    const oldest = this._oldestIndex();
     return Math.max(0, this.dist - this.trail[oldest * 4 + 3] - this.length - 3);
   }
 
@@ -5625,29 +6252,19 @@ class Train {
        every frame and never pull away. */
     if (this.speed < 0.02 && (this.throttle === 0 || this.braking)) this.speed = 0;
 
-    let ds = this.speed * h;
-    if (this.dir < 0) {
-      // hard stop where the recorded path runs out, like hitting the buffers
-      const room = this.reverseRoom;
-      if (room <= 0.01) { this.speed = 0; ds = 0; }
-      else if (ds > room) ds = room;
-    }
+    const ds = this.speed * h;
     if (ds > 0) {
       this.dist += ds * this.dir;
       const before = this.s;
       this.s += ds * this.dir;
 
       if (this.dir < 0) {
-        // going backwards: a branch simply runs out at its junction
-        if (this.seg !== 'main' && this.s < 0) {
-          const b = this.branchSeg;
-          this.seg = 'main'; this.branchSeg = null;
-          this.s = mod(b.s0 + this.s, this.track.mainLen);
-          this.audio.clank();
-          ctx.events.emit('train:merged', { branch: b });
-        } else if (this.seg === 'main') {
-          this.s = mod(this.s, this.track.mainLen);
-        }
+        // The rear is the leading end and the one that steers. It lays new
+        // trail; the engine's own position is then read back off that trail.
+        this._syncFront(0);
+        this._trimBehindRear();
+        this._extendTail(ctx);
+        this._headFromTrail();
       } else if (this.seg === 'main') {
         const L = this.track.mainLen;
         const sN = this.s;
@@ -5723,27 +6340,50 @@ class Train {
   _overshoot(a, b, target, L) { return (b - a) - mod(target - a, L); }
 
   _scanJunction(ctx) {
-    if (this.seg !== 'main') {
+    const L = this.track.mainLen;
+    let best = null, bd = 1e9, onMain, fromS;
+
+    if (this.dir < 0) {
+      /* Setting back, the rear of the train reaches the points first, so it is
+         the rear's position that matters and the junctions that matter are the
+         ones the branches trail into — which are facing points when you are
+         going the other way. */
+      const oi = this._oldestIndex();
+      onMain = this.trailCount > 1 && this.segById(this.trailSegI[oi]) === 'main';
+      fromS = this.trailS[oi];
+      if (onMain) for (const b of this.track.branches) {
+        const d = mod(fromS - b.s1, L);
+        if (d < bd) { bd = d; best = b; }
+      }
+    } else {
+      onMain = this.seg === 'main';
+      fromS = this.s;
+      if (onMain) for (const b of this.track.branches) {
+        const d = mod(b.s0 - fromS, L);
+        if (d < bd) { bd = d; best = b; }
+      }
+    }
+
+    if (!onMain) {
       if (this.pendingBranch) { this.pendingBranch = null; this._announced = null; ctx.events.emit('train:junction', { branch: null }); }
       return;
-    }
-    const L = this.track.mainLen;
-    let best = null, bd = 1e9;
-    for (const b of this.track.branches) {
-      const d = mod(b.s0 - this.s, L);
-      if (d < bd) { bd = d; best = b; }
     }
     const LOOK = 165;
     if (best && bd < LOOK) {
       if (this.pendingBranch !== best) {
         this.pendingBranch = best;
         this.takeBranch = false;
+        this.tailBranch = this.dir < 0 ? best : null;
+        this.tailTakeBranch = false;
         this._announced = best.id;
-        ctx.events.emit('train:junction', { branch: best, dist: bd });
+        ctx.events.emit('train:junction', {
+          branch: best, dist: bd, reversing: this.dir < 0,
+          side: this.dir < 0 ? best.sideBack : best.side,
+        });
       }
       this._junctionDist = bd;
     } else if (this.pendingBranch) {
-      this.pendingBranch = null; this._announced = null;
+      this.pendingBranch = null; this.tailBranch = null; this._announced = null;
       ctx.events.emit('train:junction', { branch: null });
     }
   }
@@ -5751,6 +6391,7 @@ class Train {
   setSwitch(takeBranch) {
     if (!this.pendingBranch) return false;
     this.takeBranch = !!takeBranch;
+    this.tailTakeBranch = this.dir < 0 ? !!takeBranch : false;
     this.track.setJunctionLamp(this.pendingBranch.id, this.takeBranch, true);
     this.ctx.events.emit('train:switchset', { branch: this.pendingBranch, take: this.takeBranch });
     return true;
@@ -6063,7 +6704,7 @@ class Cam {
    quicker, which is a lesson in itself. */
 
 const SHEEP_PER_FLOCK = 7;
-const FLOCK_COUNT = 7;
+const FLOCK_COUNT = 10;
 
 class Flocks {
   static id = 'flocks';
@@ -6124,9 +6765,13 @@ class Flocks {
       for (const s of segs) { u -= s.len; if (u <= 0) return s; }
       return segs[0];
     };
+    /* Half the flocks go beside the main line by name rather than by lottery.
+       Weighting by length alone put six of seven out on the branches, and a
+       train doing laps of the main loop never met one. */
     let guard = 0;
-    while (this.flocks.length < FLOCK_COUNT && guard++ < 900) {
-      const seg = pickSeg();
+    while (this.flocks.length < FLOCK_COUNT && guard++ < 6000) {
+      const seg = this.flocks.length < Math.ceil(FLOCK_COUNT / 2)
+        ? this.track.segs.main : pickSeg();
       const i = 12 + ((r() * (seg.pts.length - 24)) | 0);
       if (seg.kind && seg.kind[i] !== 0) continue;              // not on a bridge or in a tunnel
       const p = seg.pts[i];
@@ -6135,7 +6780,7 @@ class Flocks {
       const cx = p.x + (-p.tz) * off * side, cz = p.z + p.tx * off * side;
       const h = this.world.height(cx, cz);
       if (h < WATER_Y + 2) continue;
-      if (this.world.slope(cx, cz) > 0.7) continue;
+      if (this.world.slope(cx, cz) > 0.9) continue;
       // too near a station and the platform ends up full of sheep
       let clear = true;
       for (const k in this.track.stations) {
@@ -6354,6 +6999,37 @@ const MISSIONS = [
   { id: 'm10', stops: ['peak', 'bay'], stars: 16, pic: 'p-stars',
     say: 'Bring the stars down from the peak to Herring Bay.',
     txt: 'Stars: peak to the bay' },
+
+  /*── the long runs: the city, the desert and the mountain line ──*/
+  { id: 'm11', stops: ['city'], stars: 14, pic: 'p-city',
+    say: 'Run east to Coppergate City. You will see the towers a long way off.',
+    txt: 'Go to Coppergate City' },
+  { id: 'm12', stops: ['forest'], stars: 12, pic: 'p-timber',
+    say: 'Head for Pinewood Lodge, deep in the forest.', txt: 'Go to Pinewood Lodge' },
+  { id: 'm13', stops: ['desert'], stars: 16, pic: 'p-desert',
+    say: 'Out across the sand to Redsand Halt. Mind the bridges.',
+    txt: 'Go to Redsand Halt' },
+  { id: 'm14', stops: ['summit'], stars: 20, pic: 'p-summit',
+    say: 'The mountain line. Climb all the way to Eagle Pass.',
+    txt: 'Climb to Eagle Pass' },
+  { id: 'm15', stops: ['forest', 'city'], stars: 18, pic: 'p-timber',
+    say: 'Load timber at Pinewood Lodge and take it to the city.',
+    txt: 'Timber: forest to the city' },
+  { id: 'm16', stops: ['city', 'desert'], stars: 20, pic: 'p-water',
+    say: 'Water from the city out to Redsand Halt. They are waiting for it.',
+    txt: 'Water: city to the desert' },
+  { id: 'm17', stops: ['desert', 'summit'], stars: 24, pic: 'p-desert',
+    say: 'From the hottest place on the line to the coldest. Sand to summit.',
+    txt: 'Sand to summit' },
+  { id: 'm18', stops: ['summit', 'city'], stars: 24, pic: 'p-post',
+    say: 'Bring the mountain post down from Eagle Pass to Coppergate City.',
+    txt: 'Post: summit to the city' },
+  { id: 'm19', stops: ['mine', 'city'], stars: 22, pic: 'p-coal',
+    say: 'The city furnaces need coal. Load at Coalhill Mine.',
+    txt: 'Coal: mine to the city' },
+  { id: 'm20', stops: ['city', 'peak'], stars: 30, pic: 'p-parcel',
+    say: 'The last one, and the longest. Parcels from the city all the way up to Star Peak.',
+    txt: 'The long run: city to Star Peak' },
 ];
 
 /*── number puzzles ──────────────────────────────────────────────────────*/
@@ -6632,11 +7308,12 @@ class Play {
     return tgt.seg === branch.id;
   }
 
-  _mainNextStation(fromS) {
+  _mainNextStation(fromS, backwards) {
     let best = null, bd = 1e9;
     for (const k of ['town', 'works']) {
       const st = this.track.stations[k];
-      const d = mod(st.s - fromS, this.track.mainLen);
+      const d = backwards ? mod(fromS - st.s, this.track.mainLen)
+                          : mod(st.s - fromS, this.track.mainLen);
       if (d < bd) { bd = d; best = st; }
     }
     return best;
@@ -6646,9 +7323,12 @@ class Play {
     if (!p.branch) { this.ctx.events.emit('ui:junction', { live: false }); return; }
     const b = p.branch;
     const branchSt = this.track.stations[b.station];
-    const mainSt = this._mainNextStation(b.s0 + 30);
+    // setting back, the junction is the far end of the branch and the hand it
+    // leaves on is the other one
+    const rev = !!p.reversing;
+    const mainSt = this._mainNextStation(rev ? b.s1 - 30 : b.s0 + 30, rev);
     const want = this._wantsBranch(b);
-    const leftIsBranch = b.side < 0;
+    const leftIsBranch = (rev ? b.sideBack : b.side) < 0;
     this.ctx.events.emit('ui:junction', {
       live: true, branch: b,
       leftPic: leftIsBranch ? branchSt.pic : mainSt.pic,
@@ -6659,8 +7339,10 @@ class Play {
     this.track.setJunctionLamp(b.id, false, false);
     if (this.active) {
       this.audio.bell(1180, 0.07);
-      this.audio.say(want ? `Points coming up. Take the ${leftIsBranch ? 'left' : 'right'} track for ${branchSt.name}.`
-                          : 'Points coming up. Stay on the main line.');
+      this.audio.say(
+        (rev ? 'Points behind you. ' : 'Points coming up. ') +
+        (want ? `Take the ${leftIsBranch ? 'left' : 'right'} track for ${branchSt.name}.`
+              : 'Stay on the main line.'));
     }
   }
 
@@ -8023,6 +8705,7 @@ function guessQuality() {
      .add(new AudioSys())
      .add(new Track())
      .add(new World())
+     .add(new City())
      .add(new Props())
      .add(new Train())
      .add(new Cam())
