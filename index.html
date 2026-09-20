@@ -2795,7 +2795,10 @@ class MB {
     const hh = h / 2, ring0 = [], ring1 = [];
     const put = (r, off, a) => {
       const u = Math.cos(a) * r, v = Math.sin(a) * r;
-      if (axis === 'y') return new THREE.Vector3(cx + u, cy + off, cz + v);
+      // z mirrored: with +z the side and cap quads wind inward and the
+      // material culls the near faces, so every trunk, pole and cone was
+      // drawn from the inside
+      if (axis === 'y') return new THREE.Vector3(cx + u, cy + off, cz - v);
       if (axis === 'x') return new THREE.Vector3(cx + off, cy + u, cz + v);
       return new THREE.Vector3(cx + u, cy + v, cz + off);
     };
@@ -2826,7 +2829,9 @@ class MB {
       const phi = i / rings * Math.PI, row = [];
       for (let j = 0; j <= segs; j++) {
         const th = j / segs * TAU;
-        let sx = Math.sin(phi) * Math.cos(th), sy = Math.cos(phi), sz = Math.sin(phi) * Math.sin(th);
+        // z mirrored, for the same reason as the cylinder: wound this way
+        // round, every canopy and boulder showed its far inside faces
+        let sx = Math.sin(phi) * Math.cos(th), sy = Math.cos(phi), sz = -Math.sin(phi) * Math.sin(th);
         let w = 1;
         if (warp) w = 1 + (j === segs ? 0 : (r() - 0.5)) * warp;
         row.push(new THREE.Vector3(cx + sx * rx * w, cy + sy * ry * w, cz + sz * rz * w));
