@@ -7,8 +7,13 @@ every instruction read out loud, and a whole valley of twenty stations to unlock
 the Toybox Works, Cloverfield Farm, Coalhill Mine, Herring Bay, Star Peak, Pinewood Lodge,
 Coppergate City, Redsand Halt, Eagle Pass on the mountain line, and now Appleby Orchard, Mill
 Ford, Windmill Hill, Greystone Quarry, Ravenstone Castle, Nugget Gulch, Honeypot Meadow, Gull
-Point, Bluebell Wood and Tinker's Yard. Nine branch lines leave the main loop, and on the ledges
+Point, Bluebell Wood and Tinker's Yard. Seven branch lines leave the main loop, and on the ledges
 under the crags there are DANGER boards, and rocks that come down.
+
+Every line is laid to railway rules: arcs of at least 65 m radius joined by straights and
+reverse curves, a speed limit on every bend, both rails of every branch level with the main line
+through the whole turnout, and a self-check at boot that measures every rail head against the
+ground as drawn and refuses to stay quiet if any is buried.
 
 **Play online:** https://developmentation.github.io/sable-train-game/
 
@@ -28,9 +33,11 @@ no build step. Progress (stars, deliveries, your train) is saved in the browser.
 | ![A danger zone: rocks on the line under the crag](docs/screenshots/07-danger-zone.png) | ![Ravenstone Castle](docs/screenshots/08-ravenstone-castle.png) |
 | *A danger zone: creep up and the plough shoves the rock off the line* | *Ravenstone Castle, on the peak line* |
 | ![Windmill Hill](docs/screenshots/09-windmill-hill.png) | ![Mill Ford, the river and the wheel](docs/screenshots/10-mill-ford.png) |
-| *Windmill Hill, on its own little loop off the north side* | *Mill Ford: the river runs in a real channel now, and the wheel turns in it* |
+| *Windmill Hill, on its own loop inside the farm line* | *Mill Ford, where the main line crosses the river* |
 | ![Gull Point lighthouse at night](docs/screenshots/11-gull-point-night.png) | ![Mirror Tarn in winter](docs/screenshots/12-mirror-tarn-winter.png) |
 | *Gull Point: the lighthouse beam sweeps round all night* | *Bluebell Wood and Mirror Tarn under winter snow* |
+| ![A branch rejoining the main line, level through the turnout](docs/screenshots/13-turnout-level.png) | ![Nugget Gulch](docs/screenshots/14-nugget-gulch.png) |
+| *The peak line rejoining beside the tarn: every turnout is level and coplanar for its whole length* | *Nugget Gulch, second stop on the desert line* |
 
 ## How to play
 

@@ -1694,6 +1694,104 @@ function catmull(pts, t, closed) {
      mission:done    {mission, stars}
      stars:add       {n, why}
      quality:change  {level}                                                    */
+
+/* Railway alignment between two poses: the shortest path made of a circular
+   arc, a straight and a circular arc (Dubins' CSC family) with every arc of
+   radius R. A spline through waypoints bends as hard as the waypoints make it;
+   this cannot bend harder than R anywhere, which is the one property a railway
+   curve actually has to have. Returns null when no such path exists at that
+   radius (the two turning circles overlap), so the caller can try a smaller
+   radius or a different junction. Headings are unit (tx, tz); "n" is the
+   left-hand normal (-tz, tx), and a turn of sense s (+1/-1) circles about the
+   centre p + s·R·n. */
+function dubinsCSC(p0, h0, p1, h1, R, spacing = 1.5, accept = null) {
+  const n = h => ({ x: -h.z, z: h.x });
+  const rot = (a, phi) => ({ x: Math.cos(phi) * a.x - Math.sin(phi) * a.z, z: Math.sin(phi) * a.x + Math.cos(phi) * a.z });
+  const n0 = n(h0), n1 = n(h1);
+  const all = [];
+  for (const s1 of [1, -1]) for (const s2 of [1, -1]) {
+    const c1 = { x: p0.x + s1 * R * n0.x, z: p0.z + s1 * R * n0.z };
+    const c2 = { x: p1.x + s2 * R * n1.x, z: p1.z + s2 * R * n1.z };
+    const vx = c2.x - c1.x, vz = c2.z - c1.z, d = Math.hypot(vx, vz);
+    if (d < 1e-6) continue;
+    const v = { x: vx / d, z: vz / d };
+    let u;
+    if (s1 === s2) u = v;
+    else {
+      if (d < 2 * R) continue;
+      u = rot(v, Math.asin(2 * s1 * R / d));
+    }
+    const nu = n(u);
+    const t1 = { x: c1.x - s1 * R * nu.x, z: c1.z - s1 * R * nu.z };
+    const t2 = { x: c2.x - s2 * R * nu.x, z: c2.z - s2 * R * nu.z };
+    const sweep = (c, a, b, s) => {
+      const ta = Math.atan2(a.z - c.z, a.x - c.x), tb = Math.atan2(b.z - c.z, b.x - c.x);
+      return s > 0 ? mod(tb - ta, TAU) : mod(ta - tb, TAU);
+    };
+    const w1 = sweep(c1, p0, t1, s1), w2 = sweep(c2, t2, p1, s2);
+    const straight = Math.hypot(t2.x - t1.x, t2.z - t1.z);
+    const len = R * (w1 + w2) + straight;
+    all.push({ len, c1, c2, t1, t2, s1, s2, w1, w2, straight });
+  }
+  all.sort((a, b) => a.len - b.len);
+  for (const best of all) {
+    const pts = [];
+    const arc = (c, from, s, w) => {
+      const a0 = Math.atan2(from.z - c.z, from.x - c.x);
+      const steps = Math.max(1, Math.ceil(R * w / spacing));
+      for (let k = 0; k < steps; k++) {
+        const a = a0 + s * w * k / steps;
+        pts.push({ x: c.x + R * Math.cos(a), z: c.z + R * Math.sin(a) });
+      }
+    };
+    arc(best.c1, p0, best.s1, best.w1);
+    const ns = Math.max(1, Math.ceil(best.straight / spacing));
+    for (let k = 0; k < ns; k++) pts.push({ x: lerp(best.t1.x, best.t2.x, k / ns), z: lerp(best.t1.z, best.t2.z, k / ns) });
+    arc(best.c2, best.t2, best.s2, best.w2);
+    pts.push({ x: p1.x, z: p1.z });
+    best.pts = pts;
+    if (!accept || accept(best)) return best;
+  }
+  return null;
+}
+
+
+
+/* Points bucketed into square cells, for "is anything of this line within r
+   of that point" asked tens of thousands of times while the branches are laid. */
+class PtGrid {
+  constructor(pts, cell) {
+    this.cell = cell; this.map = new Map();
+    for (const p of pts) {
+      const k = this._key(Math.floor(p.x / cell), Math.floor(p.z / cell));
+      let a = this.map.get(k); if (!a) this.map.set(k, a = []);
+      a.push(p);
+    }
+  }
+  _key(i, j) { return (i + 32768) * 65536 + (j + 32768); }
+  /* nearest distance from (x,z) to any point, or Infinity beyond r */
+  dist(x, z, r) {
+    const c = this.cell, ci = Math.floor(x / c), cj = Math.floor(z / c), reach = Math.ceil(r / c);
+    let best = r * r;
+    for (let j = cj - reach; j <= cj + reach; j++) for (let i = ci - reach; i <= ci + reach; i++) {
+      const a = this.map.get(this._key(i, j)); if (!a) continue;
+      for (const p of a) { const dx = p.x - x, dz = p.z - z, d2 = dx * dx + dz * dz; if (d2 < best) best = d2; }
+    }
+    return best < r * r ? Math.sqrt(best) : Infinity;
+  }
+  hits(pts, r, stride = 1) {
+    for (let i = 0; i < pts.length; i += stride) if (this.dist(pts[i].x, pts[i].z, r) < r) return true;
+    return false;
+  }
+}
+
+/* The radii a branch is allowed, gentlest first. Sixty-five metres is the
+
+   floor: the engine is nine metres long on a 3.6 m rigid wheelbase, and
+   below that the curve reads as a toy. The main loop is authored by hand
+   and never gets under 285 m. */
+const BRANCH_RADII = [240, 200, 165, 135, 110, 90, 75, 65];
+const R_MIN = 65;
 class Bus {
   constructor() { this.m = new Map(); }
   on(k, fn) {
@@ -2926,6 +3024,7 @@ function landHeight(x, z) {
   h += massif * (0.45 + 0.55 * (ridged(x * 0.0026 + 3, z * 0.0026 - 5, 4) * 0.5 + 0.5)) * 250;
 
   h += bump(x, z, 648, -176, 132) * 38;      // the ridge the main line tunnels through
+  h += bump(x, z, -380, -1160, 300) * 45;    // the ridge Eagle Pass sits under
   h += bump(x, z, -760, 150, 190) * 78;      // the crag above Star Peak
   h += bump(x, z, 250, -690, 200) * 46;
 
@@ -3046,19 +3145,23 @@ const TUNNEL_HOOD = 13.5;
 /* Only the destination matters now: the junction positions are searched for at
    load time so that the line can actually leave the main line and come back. */
 const BRANCH_DEF = [
-  { id: 'farm', station: 'farm' },
-  { id: 'mine', station: 'mine' },
-  { id: 'bay',  station: 'bay'  },
-  { id: 'peak', station: 'peak' },
-  { id: 'desert', station: 'desert' },
-  { id: 'summit', station: 'summit' },
+  /* 'near' pins a line to the stretch of loop it has always left from —
+     [s0, s1], each within seventy metres — so a change to how branches are
+     laid never shuffles the whole valley. */
+  { id: 'farm', station: 'farm', near: [70, 794] },
+  { id: 'desert', station: 'desert', near: [1316, 1718] },
+  { id: 'mine', station: 'mine', near: [1904, 2628] },
+  { id: 'bay',  station: 'bay', near: [2860, 3584] },
+  { id: 'peak', station: 'peak', near: [3843, 4567] },
+  /* Eagle Pass lies beyond the end of its own arc of the loop, so the only
+     way up and back is a balloon loop that crosses itself — a flat diamond
+     crossing on the mountain, as real balloon loops have. */
+  { id: 'summit', station: 'summit', near: [4700, 5250] },
   /* The three newer lines. The loop was already packed: the orchard line has
      to squeeze into the last free stretch with tighter margins, and the other
      two are tucked INSIDE the arcs of older branches, bulging the other way —
      a balloon off the inside of the bay loop and another inside the farm loop.
      Those get a plan-crossing check the originals never needed. */
-  { id: 'orchard', station: 'orchard', pad: 60, minSpan: 0.040 },
-  { id: 'mill', station: 'mill', nestIn: 'bay' },
   { id: 'windmill', station: 'windmill', nestIn: 'farm' },
 ];
 
@@ -3086,7 +3189,7 @@ const STATIONS = {
           cargo: 'p-stars', cargoName: 'stars', side: 1 },
   desert: { id: 'desert', on: 'desert', x: 1290, z: 620, name: 'Redsand Halt', pic: 'p-desert',
           cargo: 'p-water', cargoName: 'water', side: -1 },
-  summit: { id: 'summit', on: 'summit', x: 330, z: -1000, name: 'Eagle Pass', pic: 'p-summit',
+  summit: { id: 'summit', on: 'summit', x: -300, z: -1030, name: 'Eagle Pass', pic: 'p-summit',
           cargo: 'p-post', cargoName: 'mountain post', side: 1 },
 
   /*── the ten newer places ──*/
@@ -3107,10 +3210,10 @@ const STATIONS = {
   castle: { id: 'castle', on: 'peak', x: -831, z: -335, name: 'Ravenstone Castle', pic: 'p-castle',
           cargo: 'p-treasure', cargoName: 'treasure', side: -1 },
   // and three whole new lines
-  orchard: { id: 'orchard', on: 'orchard', x: 1090, z: -560, name: 'Appleby Orchard', pic: 'p-orchard',
-          cargo: 'p-apples', cargoName: 'apples', side: 'auto' },
-  mill: { id: 'mill', on: 'mill', x: -60, z: 440, name: 'Mill Ford', pic: 'p-mill',
-          cargo: 'p-flour', cargoName: 'flour', side: 'auto' },
+  orchard: { id: 'orchard', on: 'main', x: 975, z: -330, name: 'Appleby Orchard', pic: 'p-orchard',
+          cargo: 'p-apples', cargoName: 'apples', side: -1 },
+  mill: { id: 'mill', on: 'main', x: -330, z: 560, name: 'Mill Ford', pic: 'p-mill',
+          cargo: 'p-flour', cargoName: 'flour', side: 1 },
   windmill: { id: 'windmill', on: 'windmill', x: 435, z: -440, name: 'Windmill Hill', pic: 'p-windmill',
           cargo: 'p-grain', cargoName: 'grain', side: 'auto' },
 };
@@ -3230,13 +3333,16 @@ class Track {
           const d = (m.pts[i].x - st.x) ** 2 + (m.pts[i].z - st.z) ** 2;
           if (d < bd) { bd = d; bi = i; }
         }
-        mainPlatforms.push(m.pts[bi].s);
+        mainPlatforms.push({ s: m.pts[bi].s, side: st.side });
       }
     }
-    const LEAD = 95, PLAT = 23 + 60;
-    const foulsPlatform = (s0, s1) => mainPlatforms.some(ps =>
-      inArc(ps, mod(s0 - PLAT, L), LEAD + 2 * PLAT) ||
-      inArc(ps, mod(s1 - LEAD - PLAT, L), LEAD + 2 * PLAT));
+    /* A branch runs beside the loop for the length of its ease, on the side
+       its station is on; a platform on that side within that stretch is in
+       the way, one on the other side is not. */
+    const LEAD = 115, PLAT = 23 + 30;
+    const foulsPlatform = (s0, s1, side) => mainPlatforms.some(ps => ps.side === side && (
+      inArc(ps.s, mod(s0 - PLAT, L), LEAD + 2 * PLAT) ||
+      inArc(ps.s, mod(s1 - LEAD - PLAT, L), LEAD + 2 * PLAT)));
 
     /* A junction in a hollow ends up on a viaduct and one on a knoll ends up
        in a cutting; either way the points have nowhere to stand. The natural
@@ -3254,32 +3360,18 @@ class Track {
       return dip < -6 || dip > 9;
     };
 
-    /* Does a candidate path cut across a line that is already laid? Only the
-       newer branches are checked — the six original ones are known to be
-       clear, and testing them would only risk moving a junction the rest of
-       the valley was tuned around. */
+    /* Does a candidate path cut across a line that is already laid, or swing
+       back over the main loop between its two ends? Bucketed, because this
+       is asked thousands of times per line. */
+    const mainGrid = new PtGrid(this.segs.main.pts, 16);
+    const branchGrids = [];
     const crosses = dense => {
-      const main = this.segs.main, n = dense.length;
-      for (let i = 0; i < n; i += 3) {
-        const q = dense[i];
-        for (const b of this.branches) {
-          for (let j = 0; j < b.pts.length; j += 3) {
-            const p = b.pts[j];
-            const dx = p.x - q.x, dz = p.z - q.z;
-            if (dx * dx + dz * dz < 100) return true;
-          }
-        }
-        // the belly of the balloon must keep clear of the main line as well
-        if (i > n * 0.3 && i < n * 0.7) {
-          for (let j = 0; j < main.pts.length; j += 3) {
-            const p = main.pts[j];
-            const dx = p.x - q.x, dz = p.z - q.z;
-            if (dx * dx + dz * dz < 100) return true;
-          }
-        }
-      }
-      return false;
+      const n = dense.length;
+      for (const g of branchGrids) if (g.hits(dense, 10, 4)) return true;
+      // clear of the loop everywhere except the turnouts at each end
+      return mainGrid.hits(dense.slice(80, n - 80), 10, 4);
     };
+
 
     /* Where a branch joins the main line is not something to guess at. The
        destination is fixed — it is the station — so the junction is whichever
@@ -3302,10 +3394,24 @@ class Track {
       }
       let best = null;
       const cands = [];
+      const whyA = { clash: 0, angle: 0, foul: 0 };
+      /* Which side of the loop the station is on is a property of the station,
+         judged at the nearest point of the loop to it — anywhere else the
+         loop's own heading masquerades as a lateral offset. */
+      const stSide = (() => {
+        const m = this.segs.main; let bi = 0, bd = 1e18;
+        for (let i = 0; i < m.pts.length; i++) { const d = (m.pts[i].x - T.x) ** 2 + (m.pts[i].z - T.z) ** 2; if (d < bd) { bd = d; bi = i; } }
+        const p = m.pts[bi];
+        return ((T.x - p.x) * -p.tz + (T.z - p.z) * p.tx) > 0 ? 1 : -1;
+      })();
 
+
+      const nearS = (s, want) => Math.abs(mod(s - want + L / 2, L) - L / 2) <= 70;
       for (let s0 = 0; s0 < L; s0 += 7) {
+        if (def.near && !nearS(s0, def.near[0])) continue;
         for (let span = spanMin; span <= spanMax; span += 0.010 * L) {
           const s1 = mod(s0 + span, L);
+          if (def.near && !nearS(s1, def.near[1])) continue;
           if (arc) {
             // tucked inside another line's arc: only the middle of it is free
             if (!inArc(s0, arc.a, arc.len) || !inArc(s1, arc.a, arc.len) ||
@@ -3315,12 +3421,12 @@ class Track {
             const clash = taken.some(u =>
               inArc(s0, u.a, u.len) || inArc(s1, u.a, u.len) ||
               inArc(u.a, mod(s0 - PAD, L), span + 2 * PAD));
-            if (clash) continue;
+            if (clash) { whyA.clash++; continue; }
           }
-          if (fresh && (foulsPlatform(s0, s1) || badGround(s0) || badGround(s1))) continue;
-
           const j0 = this._mainAt(s0), j1 = this._mainAt(s1);
           const t0 = tanAt(s0), t1 = tanAt(s1);
+          const bside = stSide;
+          if (foulsPlatform(s0, s1, bside) || (fresh && (badGround(s0) || badGround(s1)))) { whyA.foul++; continue; }
           // the balloon runs straight through the station, so the platform is
           // not left sitting on a curve
           const out = dirTo({ x: (j0.x + j1.x) / 2, z: (j0.z + j1.z) / 2 }, T);
@@ -3331,54 +3437,170 @@ class Track {
           if (Math.hypot(sB.x - j0.x, sB.z - j0.z) < Math.hypot(sA.x - j0.x, sA.z - j0.z)) {
             const t = sA; sA = sB; sB = t;
           }
-          const a0 = ang(t0, dirTo(j0, sA));
-          const a1 = ang(t1, dirTo(sB, j1));
+          // scored on whichever way the station straight will lie best
+          const mx = t0.x + t1.x, mz = t0.z + t1.z, ml = Math.hypot(mx, mz) || 1;
+          const al = { x: mx / ml, z: mz / ml };
+          const lA = { x: T.x - al.x * SH, z: T.z - al.z * SH }, lB = { x: T.x + al.x * SH, z: T.z + al.z * SH };
+          const a0 = Math.min(ang(t0, dirTo(j0, sA)), ang(t0, dirTo(j0, lA)));
+          const a1 = Math.min(ang(t1, dirTo(sB, j1)), ang(t1, dirTo(lB, j1)));
+          // a lead that would have to double back is not a lead
+          if (a0 > 3.0 || a1 > 3.0) { whyA.angle++; continue; }
+
           const reach = (Math.hypot(j0.x - T.x, j0.z - T.z) +
                          Math.hypot(j1.x - T.x, j1.z - T.z)) / 1000;
           const score = a0 + a1 + reach * 0.75;
-          const cand = { s0, s1, span, j0, j1, t0, t1, sA, sB, out, score, a0, a1 };
-          if (fresh) cands.push(cand);
-          else if (!best || score < best.score) best = cand;
+          cands.push({ s0, s1, span, j0, j1, t0, t1, sA, sB, out, score, a0, a1, side: bside });
         }
       }
 
-      // a short lead along the main line before the curve starts: the turnout
+
+      /* Lay the branch as railway alignment rather than a spline: a reverse
+         curve out of the points to run parallel to the loop, an arc–straight–
+         arc to the station straight, the straight, and the same back. Every
+         arc has a radius from the table; nothing can bend harder. The
+         station straight may lie along the loop or across the line out to
+         the station, be 180 or 230 m long, and carry the platform anywhere
+         along its middle — the shortest combination that lays legally wins. */
       const build = c => {
-        const { j0, j1, t0, t1, sA, sB } = c;
-        const r0 = { x: -t0.z, z: t0.x }, r1 = { x: -t1.z, z: t1.x };
-        const side = ((sA.x - j0.x) * r0.x + (sA.z - j0.z) * r0.z) > 0 ? 1 : -1;
-        const OFF = 3.6;
-        const L0 = clamp(0.26 * Math.hypot(sA.x - j0.x, sA.z - j0.z), 28, 95);
-        const L1 = clamp(0.26 * Math.hypot(sB.x - j1.x, sB.z - j1.z), 28, 95);
-        const lead0 = { x: j0.x + t0.x * L0 + r0.x * side * OFF,
-                        z: j0.z + t0.z * L0 + r0.z * side * OFF };
-        const lead1 = { x: j1.x - t1.x * L1 + r1.x * side * OFF,
-                        z: j1.z - t1.z * L1 + r1.z * side * OFF };
-        const ctrl = [j0, lead0, sA, T, sB, lead1, j1];
-        return { dense: hermitePath(ctrl, t0, t1, 220, 0.72), side };
+        let bestB = null;
+        for (const orient of ['out', 'loop', 'outRev'])
+          for (const STR of [230, 180])
+            for (const u of [0.5, 0.3, 0.7]) {
+              const b = buildWith(c, orient, STR, u);
+              if (b && (!bestB || b.len < bestB.len)) bestB = b;
+            }
+        return bestB;
+      };
+      const buildWith = (c, orient, STR, u) => {
+        const { j0, j1, t0, t1 } = c;
+        let h;
+        if (orient === 'loop') {
+          const mx = t0.x + t1.x, mz = t0.z + t1.z, ml = Math.hypot(mx, mz) || 1;
+          h = { x: mx / ml, z: mz / ml };
+        } else {
+          const hl0 = Math.hypot(c.sB.x - c.sA.x, c.sB.z - c.sA.z) || 1;
+          h = { x: (c.sB.x - c.sA.x) / hl0, z: (c.sB.z - c.sA.z) / hl0 };
+          if (orient === 'outRev') h = { x: -h.x, z: -h.z };
+        }
+        const sA = { x: T.x - h.x * STR * u, z: T.z - h.z * STR * u };
+        const sB = { x: T.x + h.x * STR * (1 - u), z: T.z + h.z * STR * (1 - u) };
+        const side = c.side;
+        const hl = STR;
+        const fit = (p, hp, q, hq) => {
+          const dist = Math.hypot(q.x - p.x, q.z - p.z);
+          const opts = [];
+          for (const R of BRANCH_RADII) {
+            // a path that has to wind round a full circle is not a line
+            const d = dubinsCSC(p, hp, q, hq, R, 1.5, cc =>
+              cc.len <= dist * 1.9 + 2.2 * R + 160 && cc.w1 < 1.6 * Math.PI && cc.w2 < 1.6 * Math.PI && !mainGrid.hits(cc.pts, 10, 4));
+            if (d) opts.push({ d, R });
+          }
+          if (!opts.length) return null;
+          // the gentlest radius that does not cost more than a little extra length
+          const shortest = Math.min(...opts.map(o => o.d.len));
+          return opts.find(o => o.d.len <= shortest * 1.12 + 30);
+        };
+        /* The turnout itself: from the points the branch eases out through a
+           reverse curve to run twelve metres off the loop, parallel to it,
+           and only then swings away — measured along the loop itself, not
+           along a tangent, because on a bend a straight-line "parallel" lands
+           back on the rails it left. */
+        const LEAD = 110, OFF_L = 12;
+        const offAt = (s, uu) => {
+          const p = this._mainAt(s), t = tanAt(s), r = { x: -t.z, z: t.x };
+          const off = OFF_L * side * smoothstep(0, 1, uu);
+          return { x: p.x + r.x * off, z: p.z + r.z * off };
+        };
+        const ease = (sJ, arriving) => {
+          const pts = [], N = Math.ceil(LEAD / 1.5);
+          for (let k = 0; k < N; k++) {
+            const uu = k / N;
+            pts.push(arriving ? offAt(sJ - (1 - uu) * LEAD, 1 - uu) : offAt(sJ + uu * LEAD, uu));
+          }
+          return pts;
+        };
+        const A = offAt(c.s0 + LEAD, 1), hA = tanAt(c.s0 + LEAD);
+        const B = offAt(c.s1 - LEAD, 1), hB = tanAt(c.s1 - LEAD);
+        const a = fit(A, hA, sA, h);
+        if (!a) { whyB.fitA++; return null; }
+        const b = fit(sB, h, B, hB);
+        if (!b) { whyB.fitB++; return null; }
+        const dense = ease(c.s0, false);
+        for (const p of a.d.pts) dense.push(p);
+        const ns = Math.ceil(hl / 1.5);
+        for (let k = 1; k < ns; k++) dense.push({ x: lerp(sA.x, sB.x, k / ns), z: lerp(sA.z, sB.z, k / ns) });
+        for (const p of b.d.pts) dense.push(p);
+        for (const p of ease(c.s1, true)) dense.push(p);
+        dense.push({ x: j1.x, z: j1.z });
+        // no lobe far beyond the line's own shape, and the two legs keep apart
+        const Rm = Math.max(a.R, b.R), reachMax = 2 * Rm + 80;
+        const segD = (p, uu, v) => { const ex = v.x - uu.x, ez = v.z - uu.z, l2 = ex * ex + ez * ez || 1; const t = clamp(((p.x - uu.x) * ex + (p.z - uu.z) * ez) / l2, 0, 1); return Math.hypot(p.x - uu.x - ex * t, p.z - uu.z - ez * t); };
+        for (let i = 0; i < dense.length; i += 6) {
+          const p = dense[i];
+          if (Math.min(segD(p, j0, sA), segD(p, sA, sB), segD(p, sB, j1)) > reachMax) { whyB.lobe++; return null; }
+        }
+        /* The two legs keep 22 m apart — unless the line is allowed to cross
+           itself, in which case a steep crossing is a diamond and only a
+           shallow, near-parallel approach is refused. */
+        const dirAt = k => { const p = dense[Math.max(0, k - 3)], q = dense[Math.min(dense.length - 1, k + 3)]; const dx = q.x - p.x, dz = q.z - p.z, l = Math.hypot(dx, dz) || 1; return { x: dx / l, z: dz / l }; };
+        const crossings = [];
+        for (let i = 0; i < dense.length; i += 5) for (let j = i + 90; j < dense.length; j += 5) {
+          const dx = dense[i].x - dense[j].x, dz = dense[i].z - dense[j].z;
+          if (dx * dx + dz * dz >= 22 * 22) continue;
+          const di = dirAt(i), dj = dirAt(j);
+          const ang2 = Math.acos(Math.min(1, Math.abs(di.x * dj.x + di.z * dj.z)));
+          if (!def.mayCross || ang2 < 0.5) { whyB.self++; return null; }
+          const d = Math.sqrt(dx * dx + dz * dz);
+          const near = crossings.find(cr => Math.abs(cr.i - i) < 40 && Math.abs(cr.j - j) < 40);
+          if (!near) crossings.push({ i, j, d }); else if (d < near.d) { near.i = i; near.j = j; near.d = d; }
+        }
+        if (crossings.length > 1) { whyB.self++; whyB.multi = (whyB.multi || 0) + 1; return null; }
+        return { dense, side, minR: Math.min(a.R, b.R), len: a.d.len + hl + b.d.len + 2 * LEAD, sA, sB, orient, crossings };
       };
 
+
+      /* Every line — the six originals as well — is now built from the best
+         candidates in turn until one is laid at a legal radius without
+         crossing anything, so the search can no longer hand back a junction
+         that only a spline could reach. */
       let built = null;
-      if (fresh) {
-        cands.sort((a, b) => a.score - b.score);
-        for (const c of cands.slice(0, 80)) {
-          const b = build(c);
-          if (!crosses(b.dense)) { best = c; built = b; break; }
-        }
-      } else if (best) built = build(best);
-      if (!best || !built) { console.warn('no room on the loop for the ' + def.id + ' line'); continue; }
+      cands.sort((a, b) => a.score - b.score);
+      const why = { cands: cands.length, noFit: 0, crossed: 0 };
+      const whyB = { fitA: 0, fitB: 0, lobe: 0, self: 0 };
+      for (const c of cands.slice(0, 400)) {
+        const b = build(c);
+        if (!b) { why.noFit++; continue; }
+        if (crosses(b.dense)) { why.crossed++; continue; }
+        best = c; built = b; break;
+      }
+      if (!best || !built) {
+        const c0 = cands[0];
+        (this._failed = this._failed || {})[def.id] = c0 && { s0: c0.s0, s1: c0.s1, T, j0: c0.j0, t0: c0.t0, sA: c0.sA, sB: c0.sB, j1: c0.j1, t1: c0.t1, side: c0.side };
+        console.warn('no room on the loop for the ' + def.id + ' line ' + JSON.stringify(why) + JSON.stringify(whyA) + JSON.stringify(whyB) +
+          (c0 ? ' best=' + JSON.stringify({ s0: Math.round(c0.s0), s1: Math.round(c0.s1), a0: +c0.a0.toFixed(2), a1: +c0.a1.toFixed(2), score: +c0.score.toFixed(2) }) : ''));
+        continue;
+      }
+
+
+
       if (!arc) taken.push({ a: mod(best.s0 - PAD, L), len: best.span + 2 * PAD });
 
       const { s0, s1 } = best;
+      best.sA = built.sA; best.sB = built.sB;
+      const cum = [0];
+      for (let i = 1; i < built.dense.length; i++) cum.push(cum[i - 1] + Math.hypot(built.dense[i].x - built.dense[i - 1].x, built.dense[i].z - built.dense[i - 1].z));
+      const crossS = (built.crossings || []).map(cr => [cum[cr.i], cum[cr.j]]);
       const r = this._resample(built.dense, false);
       const seg = {
         id: def.id, closed: false, pts: r.pts, len: r.len, step: r.step,
         s0, s1, station: def.station, isBranch: true, side: built.side, out: best.out,
         nestIn: def.nestIn || null,
+        crossings: crossS.map(([a, b]) => [Math.round(a / r.step), Math.round(b / r.step)]),
       };
       this._tangents(seg);
       this.segs[def.id] = seg;
       this.branches.push(seg);
+      branchGrids.push(new PtGrid(seg.pts, 16));
     }
 
     this.branches.sort((a, b) => a.s0 - b.s0);
@@ -3394,17 +3616,22 @@ class Track {
     const main = this.segs.main;
     for (const b of this.branches) {
       b.shared = new Uint8Array(b.pts.length);
+      b.sharedMain = new Int32Array(b.pts.length).fill(-1);
       for (let i = 0; i < b.pts.length; i++) {
         const q = b.pts[i];
-        let best = 1e18;
-        for (let j = 0; j < main.pts.length; j += 2) {
+        let best = 1e18, bj = -1;
+        for (let j = 0; j < main.pts.length; j++) {
           const p = main.pts[j];
           const dx = p.x - q.x, dz = p.z - q.z;
           const d2 = dx * dx + dz * dz;
-          if (d2 < best) best = d2;
+          if (d2 < best) { best = d2; bj = j; }
         }
-        b.shared[i] = Math.sqrt(best) < 7.5 ? 1 : 0;
+        const dd = Math.sqrt(best);
+        b.shared[i] = dd < 7.5 ? 1 : 0;                 // one trackbed for both
+        if (dd < 14.5) b.sharedMain[i] = bj;            // and one height, out to the parallel run
       }
+
+
       /* Backing in at the far end, the branch leaves on the other hand: the
          direction of travel has reversed, so left and right swap over. Work it
          out from the geometry rather than by negating b.side, because the two
@@ -3447,11 +3674,11 @@ class Track {
      mean and has no preferred direction, so the loop closes on itself. Coarse
      strides run first so a correction can travel a kilometre in a few passes
      rather than crawling one sample at a time. */
-  _limitGrade(arr, closed, step, maxGrade, pinEnds) {
+  _limitGrade(arr, closed, step, maxGrade, pinEnds, mask) {
     const n = arr.length;
     if (n < 4) return;
     const at = i => (closed ? mod(i, n) : i);
-    const fixed = k => pinEnds && !closed && (k === 0 || k === n - 1);
+    const fixed = k => (pinEnds && !closed && (k === 0 || k === n - 1)) || (mask && mask[k] === 1);
     for (let stride = 64; stride >= 1; stride >>= 1) {
       const d = maxGrade * step * stride;
       for (let pass = 0; pass < 26; pass++) {
@@ -3507,15 +3734,38 @@ class Track {
       this._blur(bh, false, 12);
       // limiting and tying pull against each other, so alternate until the
       // ends match the main line and the ruling gradient still holds
-      const pin = [mainYAt(b.s0) - 0.55, mainYAt(b.s1) - 0.55];
-      for (let round = 0; round < 4; round++) {
-        this._tieEnds(bh, pin);
+      /* Through the turnout the branch runs a few metres from the main line
+         for the length of the lead, and there it must be at the main line's
+         height, sample for sample — not merely meet it at the last point. So
+         every shared sample is pinned to its neighbour on the loop, held
+         fixed while the grade limiter relaxes the free samples up to it, and
+         pinned again after the platforms have had their say. */
+      const mask = new Uint8Array(bh.length);
+      const matchShared = () => {
+        for (let i = 0; i < bh.length; i++) {
+          if (b.sharedMain[i] < 0) continue;
+          bh[i] = m.pts[b.sharedMain[i]].y - 0.55;
+          mask[i] = 1;
+        }
+        bh[0] = mainYAt(b.s0) - 0.55; bh[bh.length - 1] = mainYAt(b.s1) - 0.55;
+        mask[0] = mask[bh.length - 1] = 1;
+      };
+      const pinCrossings = () => {
+        for (const [i, j] of (b.crossings || [])) {
+          const y = (bh[i] + bh[j]) / 2;
+          for (const k of [i, j]) for (let q = -4; q <= 4; q++) if (k + q >= 0 && k + q < bh.length) bh[k + q] = y;
+        }
+      };
+      for (let round = 0; round < 6; round++) {
+        matchShared(); pinCrossings();
         this._levelAtStations(bh, b);
-        this._limitGrade(bh, false, b.step, 0.052);
+        this._limitGrade(bh, false, b.step, 0.052, false, mask);
       }
-      this._tieEnds(bh, pin);
+      matchShared(); pinCrossings();
       this._levelAtStations(bh, b);
+      matchShared(); pinCrossings();
       for (let i = 0; i < bh.length; i++) b.pts[i].y = bh[i] + 0.55;
+
     }
 
     // grade, for the smoke, the engine load and the sound of the exhaust
@@ -3527,7 +3777,18 @@ class Track {
         p[i].grade = (b2.y - a.y) / (2 * s.step);
       }
     }
+    // — and curvature, for the speed the line will stand
+    for (const k in this.segs) {
+      const s = this.segs[k], p = s.pts, n = p.length;
+      for (let i = 0; i < n; i++) {
+        const a = p[s.closed ? mod(i - 2, n) : Math.max(0, i - 2)];
+        const b2 = p[s.closed ? mod(i + 2, n) : Math.min(n - 1, i + 2)];
+        const dot = clamp(a.tx * b2.tx + a.tz * b2.tz, -1, 1);
+        p[i].curv = Math.acos(dot) / (4 * s.step);        // 1/R
+      }
+    }
   }
+
 
   /*── the corridor distance field, used to carve the ground and keep the
        scatter off the ballast ─────────────────────────────────────────── */
@@ -3585,8 +3846,23 @@ class Track {
       return out;
     };
 
+    /* One rail height per cell. Where two lines share a cell — a viaduct
+       passing over a cutting, a turnout, two lines side by side on a hillside
+       — the ground must be shaped to the one that actually shapes ground, and
+       to the LOWER one when both do, or the upper line's level buries the
+       lower line's rails. A viaduct or a tunnel (carve 0) counts as forty
+       metres further away than it is, so it never wins a cell from a line
+       that needs the earthworks. `dist` itself stays the true distance, for
+       the scatter and the paint. */
+    const wd = new Float32Array(R * R).fill(1e9);       // the winner's own distance
+    const wseg = new Int16Array(R * R).fill(-1);         // and which line it is on
+    const widx = new Int32Array(R * R);                  // and where along it
+    const segIndex = { main: 0 }; this.branches.forEach((b, i) => { segIndex[b.id] = i + 1; });
+    const BAND = 16;
     const splat = seg => {
       const cv = carveOf(seg);
+      const si = segIndex[seg.id];
+
       for (let i = 0; i < seg.pts.length; i++) {
         const p = seg.pts[i];
         const gx = (p.x + HALF) / C, gz = (p.z + HALF) / C;
@@ -3598,18 +3874,33 @@ class Track {
             const dx = (x + 0.5 - gx) * C;
             const d = Math.sqrt(dx * dx + dz * dz);
             const k = z * R + x;
-            if (d < dist[k]) {
-              dist[k] = d; railY[k] = p.y; carve[k] = cv[i];
+            if (d < dist[k]) dist[k] = d;
+            let win;
+            if (wseg[k] < 0 || (wseg[k] === si && Math.abs(widx[k] - i) < 40)) win = d < wd[k];
+            else {
+              // a different line: one that shapes ground and is within its
+              // own earthworks band outranks one that does not, whatever the
+              // distances; two that both shape ground here, the lower wins
+              const cNear = cv[i] >= 0.5 && d < BAND, wNear = carve[k] >= 0.5 && wd[k] < BAND;
+              if (cNear && !wNear) win = true;
+              else if (!cNear && wNear) win = false;
+              else if (cNear && wNear) win = p.y < railY[k] - 0.5 || (Math.abs(p.y - railY[k]) <= 0.5 && d < wd[k]);
+              else win = d < wd[k];
+            }
+            if (win) {
+              wd[k] = d; wseg[k] = si; widx[k] = i;
+              railY[k] = p.y; carve[k] = cv[i];
+
               cliff[k] = seg.cliff ? seg.cliff[i] : 0;
               const sd = seg.cliffSide ? (seg.cliffSide[i] || 1) : 1;
               cux[k] = -p.tz * sd; cuz[k] = p.tx * sd;
               railX[k] = p.x; railZ[k] = p.z;
             }
-
           }
         }
       }
     };
+
     splat(this.segs.main);
     for (const b of this.branches) splat(b);
 
@@ -3668,8 +3959,8 @@ class Track {
         const s2 = this.stations[key];
         if (s2.seg === seg.id) veto(s2.i, 125);
       }
-      if (seg.closed) for (const b of this.branches) { veto(Math.round(b.s0 / st), 115); veto(Math.round(b.s1 / st), 115); }
-      else { veto(0, 135); veto(n - 1, 135); }
+      if (seg.closed) for (const b of this.branches) { veto(Math.round(b.s0 / st), 190); veto(Math.round(b.s1 / st), 190); }
+      else { veto(0, 290); veto(n - 1, 290); }
 
       // how the land lies either side, thirty metres out
       const lean = new Float32Array(n), up = new Int8Array(n);
@@ -3923,13 +4214,16 @@ class Track {
     const flat = Math.ceil(26 / seg.step), blend = Math.ceil(210 / seg.step);
     for (const a of this.anchors) {
       if (a.seg !== seg.id) continue;
-      const y0 = arr[a.idx];
+      // a platform is never below the water, however low the balloon runs
+      const y0 = Math.max(arr[a.idx], WATER_Y + 1.6);
       for (let k = -flat - blend; k <= flat + blend; k++) {
         const i = seg.closed ? mod(a.idx + k, n) : a.idx + k;
         if (i < 0 || i >= n) continue;
         const ak = Math.abs(k);
+        if (seg.sharedMain && seg.sharedMain[i] >= 0) continue;   // the turnout belongs to the loop
         const w = ak <= flat ? 1 : 1 - smoothstep(flat, flat + blend, ak);
         arr[i] = lerp(arr[i], y0, w);
+
       }
     }
   }
@@ -4001,10 +4295,10 @@ class Track {
       }
       if (seg.id === 'main')
         for (const b of this.branches) {
-          clearAround(Math.round(b.s0 / seg.step), 120);
-          clearAround(Math.round(b.s1 / seg.step), 120);
+          clearAround(Math.round(b.s0 / seg.step), 200);
+          clearAround(Math.round(b.s1 / seg.step), 200);
         }
-      else { clearAround(0, 120); clearAround(n - 1, 120); }
+      else { clearAround(0, 250); clearAround(n - 1, 250); }
 
       // re-scan now that the vetoes have reshaped the runs
       this.tunnels = this.tunnels.filter(t => t.seg !== seg.id);
@@ -4435,7 +4729,53 @@ class Track {
     this.group.add(m);
   }
 
+  /* The self-check: is every rail head in daylight? Both rails, every two
+     metres, against the ground AS DRAWN — the terrain mesh interpolated across
+     the same triangles it is built from — because the height grid can be clear
+     while the coarser mesh between its vertices is not. Run at boot; the
+     result is logged, and anything over zero is a bug to go and look at. */
+  checkRails(world) {
+    const RAIL = CFG.gauge / 2, TOP = 0.225;
+    const report = { openM: 0, buriedM: 0, worst: [] };
+    for (const seg of [this.segs.main, ...this.branches]) {
+      let bad = 0, open = 0, mx = 0, at = null;
+      const bore = new Uint8Array(seg.pts.length);
+      for (const t of this.tunnels) if (t.seg === seg.id && t.p0 != null)
+        for (let i = t.p0; i <= t.p1; i++) bore[seg.closed ? mod(i, seg.pts.length) : clamp(i, 0, seg.pts.length - 1)] = 1;
+      for (let i = 0; i < seg.pts.length; i++) {
+        if (seg.kind[i] !== 0 || bore[i]) continue;
+        open++;
+
+        const q = seg.pts[i], rx = -q.tz, rz = q.tx;
+        const b = Math.max(world.meshHeight(q.x + rx * RAIL, q.z + rz * RAIL),
+                           world.meshHeight(q.x - rx * RAIL, q.z - rz * RAIL)) - (q.y + TOP);
+        if (b > 0.02) { bad++; if (b > mx) { mx = b; at = { s: Math.round(i * seg.step), x: Math.round(q.x), z: Math.round(q.z) }; } }
+      }
+      report.openM += open * seg.step; report.buriedM += bad * seg.step;
+      if (bad) report.worst.push({ line: seg.id, buriedM: bad * seg.step, deepest: +mx.toFixed(2), at });
+    }
+    let minR = 1e9, minAt = null;
+    for (const b of this.branches) for (let i = 0; i < b.pts.length; i++) {
+      const r = 1 / Math.max(1e-9, b.pts[i].curv);
+      if (r < minR) { minR = r; minAt = { line: b.id, s: Math.round(i * b.step) }; }
+    }
+    report.minBranchRadius = Math.round(minR); report.minRadiusAt = minAt;
+    let step = 0, stepAt = null;
+    for (const b of this.branches) for (let i = 0; i < b.pts.length; i++) {
+      if (b.sharedMain[i] < 0) continue;
+      const dy = Math.abs(b.pts[i].y - this.segs.main.pts[b.sharedMain[i]].y);
+      if (dy > step) { step = dy; stepAt = { line: b.id, s: Math.round(i * b.step) }; }
+    }
+    report.maxTurnoutStep = +step.toFixed(2); report.turnoutStepAt = stepAt;
+
+    this.railReport = report;
+    if (report.buriedM > 0 || minR < R_MIN - 1 || step > 0.05)
+      console.warn('track check:', JSON.stringify(report));
+    return report;
+  }
+
   /*── junction furniture: a point lever and two route lamps you can read
+
        from the cab without knowing a word of English ─────────────────── */
   _buildJunctionMarks() {
     const mb = new MB();
@@ -4534,7 +4874,7 @@ class World {
           /* A railway does not follow the ground, the ground is made to follow
              the railway: level bed, then shoulders that fall or rise away at a
              constant batter until they meet whatever was already there. */
-          const bed = 5.0;
+          const bed = 5.6;
           let batter = 2.0;                        // 1:2 slopes, gentle and green
           const cl = cor.cliff || 0;
           if (cl > 0.001) {
@@ -4594,42 +4934,99 @@ class World {
     return Math.hypot(dx, dz) / (2 * e);
   }
 
-  /*── the mesh ──────────────────────────────────────────────────────────*/
+  /*── the mesh ──────────────────────────────────────────────────────────
+     Two resolutions. The valley at large is a 321-vertex grid (10.6 m quads);
+     within twenty-odd metres of any line the same height grid is drawn at its
+     full 641 resolution (5.3 m) instead. A rail bed is five metres each way;
+     a 13 m quad on a hillside simply interpolated straight through it and
+     buried the rails, and no amount of carving the grid could fix what the
+     triangles between its vertices were doing. Fine vertices on the seam are
+     snapped onto the coarse edge so the two never crack apart, and normals
+     come from the height field for both so the shading does not show the
+     join either. */
   _buildTerrain() {
-    const N = 257, W = CFG.world, HALF = W / 2, step = W / (N - 1);
-    const pos = new Float32Array(N * N * 3);
-    const uv = new Float32Array(N * N * 2);
-    for (let j = 0; j < N; j++) {
-      for (let i = 0; i < N; i++) {
-        const k = j * N + i;
-        const x = -HALF + i * step, z = -HALF + j * step;
-        pos[k * 3] = x; pos[k * 3 + 1] = this.height(x, z); pos[k * 3 + 2] = z;
-        uv[k * 2] = i / (N - 1); uv[k * 2 + 1] = 1 - j / (N - 1);
-      }
-    }
-    /* Drop the quads that lie over a bore. A heightfield surface would
-       otherwise sweep up through the arch — blocking the view into the tunnel
-       from outside, and putting its unlit back faces between the camera and the
-       world from inside. The rock hood built by the track covers the gap. */
+    const W = CFG.world, HALF = W / 2;
+    const NF = HG_RES, NC = (NF - 1) / 2 + 1;              // 641 and 321
+    const stepF = W / (NF - 1), stepC = W / (NC - 1);
     const track = this.ctx.get('track');
-    const idx = new Uint32Array((N - 1) * (N - 1) * 6);
-    let o = 0, cut = 0;
-    for (let j = 0; j < N - 1; j++) {
-      for (let i = 0; i < N - 1; i++) {
-        const cx = -HALF + (i + 0.5) * step, cz = -HALF + (j + 0.5) * step;
+    const cor = { d: 0, y: 0, carve: 1 };
+    const NEAR = 24;
+
+    // which coarse cells are drawn coarse, which are refined, which are cut
+    const cellMode = new Uint8Array((NC - 1) * (NC - 1));   // 0 coarse, 1 fine, 2 tunnel
+    for (let j = 0; j < NC - 1; j++) for (let i = 0; i < NC - 1; i++) {
+      const cx = -HALF + (i + 0.5) * stepC, cz = -HALF + (j + 0.5) * stepC;
+      track.corridor(cx, cz, cor);
+      cellMode[j * (NC - 1) + i] = cor.d < NEAR + stepC * 0.75 ? 1 : 0;
+    }
+    const isFine = (i, j) => i >= 0 && j >= 0 && i < NC - 1 && j < NC - 1 && cellMode[j * (NC - 1) + i] === 1;
+
+    const norm = (x, z, out) => {
+      const e = stepF * 0.5;
+      const hL = this.height(x - e, z), hR = this.height(x + e, z);
+      const hD = this.height(x, z - e), hU = this.height(x, z + e);
+      const nx = hL - hR, ny = 2 * e, nz = hD - hU, l = Math.hypot(nx, ny, nz);
+      out.push(nx / l, ny / l, nz / l);
+    };
+
+    const pos = [], nrm = [], uv = [], idx = [];
+    // coarse vertices: the even fine nodes
+    const cIndex = new Int32Array(NC * NC).fill(-1);
+    const cVert = (i, j) => {
+      const k = j * NC + i;
+      if (cIndex[k] >= 0) return cIndex[k];
+      const x = -HALF + i * stepC, z = -HALF + j * stepC;
+      pos.push(x, this.height(x, z), z); norm(x, z, nrm);
+      uv.push((x + HALF) / W, 1 - (z + HALF) / W);
+      return (cIndex[k] = pos.length / 3 - 1);
+    };
+    // fine vertices, snapped to the coarse edge where they sit on a seam
+    const fIndex = new Int32Array(NF * NF).fill(-1);
+    const fVert = (i, j) => {
+      const k = j * NF + i;
+      if (fIndex[k] >= 0) return fIndex[k];
+      if (!(i & 1) && !(j & 1)) return (fIndex[k] = cVert(i >> 1, j >> 1));
+      const x = -HALF + i * stepF, z = -HALF + j * stepF;
+      let y = this.height(x, z);
+      if (i & 1 && !(j & 1)) {          // mid of a horizontal coarse edge
+        const ci = (i - 1) >> 1, cj = j >> 1;
+        if (!isFine(ci, cj) || !isFine(ci, cj - 1))
+          y = (this.height(x - stepF, z) + this.height(x + stepF, z)) / 2;
+      } else if (j & 1 && !(i & 1)) {   // mid of a vertical coarse edge
+        const ci = i >> 1, cj = (j - 1) >> 1;
+        if (!isFine(ci, cj) || !isFine(ci - 1, cj))
+          y = (this.height(x, z - stepF) + this.height(x, z + stepF)) / 2;
+      }
+      pos.push(x, y, z); norm(x, z, nrm);
+      uv.push((x + HALF) / W, 1 - (z + HALF) / W);
+      return (fIndex[k] = pos.length / 3 - 1);
+    };
+
+    let cut = 0;
+    for (let j = 0; j < NC - 1; j++) for (let i = 0; i < NC - 1; i++) {
+      const mode = cellMode[j * (NC - 1) + i];
+      if (mode === 0) {
+        const cx = -HALF + (i + 0.5) * stepC, cz = -HALF + (j + 0.5) * stepC;
         if (track.tunnelSlot(cx, cz)) { cut++; continue; }
-        const a = j * N + i, b = a + 1, c = a + N, d = c + 1;
-        idx[o++] = a; idx[o++] = c; idx[o++] = b;
-        idx[o++] = b; idx[o++] = c; idx[o++] = d;
+        const a = cVert(i, j), b = cVert(i + 1, j), c = cVert(i, j + 1), d = cVert(i + 1, j + 1);
+        idx.push(a, c, b, b, c, d);
+      } else {
+        for (let fj = 2 * j; fj < 2 * j + 2; fj++) for (let fi = 2 * i; fi < 2 * i + 2; fi++) {
+          const cx = -HALF + (fi + 0.5) * stepF, cz = -HALF + (fj + 0.5) * stepF;
+          if (track.tunnelSlot(cx, cz)) { cut++; continue; }
+          const a = fVert(fi, fj), b = fVert(fi + 1, fj), c = fVert(fi, fj + 1), d = fVert(fi + 1, fj + 1);
+          idx.push(a, c, b, b, c, d);
+        }
       }
     }
     this.tunnelQuadsCut = cut;
     const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
-    geo.setIndex(new THREE.BufferAttribute(idx.subarray(0, o), 1));
-    geo.computeVertexNormals();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    geo.setIndex(idx);
     geo.computeBoundingSphere();
+    this._meshGrid = { NC, NF, stepC, stepF, cellMode };
 
     this.groundTex = this._bakeGroundTexture();
     this.detailNrm = this._bakeDetailNormal();
@@ -4651,6 +5048,39 @@ class World {
     // never shows the edge of the world
     this._buildBackdrop();
   }
+
+  /* The ground as drawn: the height of the terrain mesh at (x, z), following
+     the same cells, the same triangle split and the same seam snapping as the
+     mesh itself. This is what the rail check compares against. */
+  meshHeight(x, z) {
+    const g = this._meshGrid;
+    if (!g) return this.height(x, z);
+    const W = CFG.world, HALF = W / 2;
+    const ci = clamp(Math.floor((x + HALF) / g.stepC), 0, g.NC - 2), cj = clamp(Math.floor((z + HALF) / g.stepC), 0, g.NC - 2);
+    const fine = g.cellMode[cj * (g.NC - 1) + ci] === 1;
+    const step = fine ? g.stepF : g.stepC;
+    const i = clamp(Math.floor((x + HALF) / step), 0, (fine ? g.NF : g.NC) - 2);
+    const j = clamp(Math.floor((z + HALF) / step), 0, (fine ? g.NF : g.NC) - 2);
+    const u = (x + HALF) / step - i, v = (z + HALF) / step - j;
+    const H = (ii, jj) => {
+      const px = -HALF + ii * step, pz = -HALF + jj * step;
+      if (!fine) return this.height(px, pz);
+      // a fine vertex on a seam takes the coarse edge's height
+      const isFine = (a, b) => a >= 0 && b >= 0 && a < g.NC - 1 && b < g.NC - 1 && g.cellMode[b * (g.NC - 1) + a] === 1;
+      if (ii & 1 && !(jj & 1)) {
+        const a = (ii - 1) >> 1, b = jj >> 1;
+        if (!isFine(a, b) || !isFine(a, b - 1)) return (this.height(px - step, pz) + this.height(px + step, pz)) / 2;
+      } else if (jj & 1 && !(ii & 1)) {
+        const a = ii >> 1, b = (jj - 1) >> 1;
+        if (!isFine(a, b) || !isFine(a - 1, b)) return (this.height(px, pz - step) + this.height(px, pz + step)) / 2;
+      }
+      return this.height(px, pz);
+    };
+    const a = H(i, j), b = H(i + 1, j), c = H(i, j + 1), d = H(i + 1, j + 1);
+    if (u + v <= 1) return a + (b - a) * u + (c - a) * v;
+    return d + (c - d) * (1 - u) + (b - d) * (1 - v);
+  }
+
 
   /*── the paint ─────────────────────────────────────────────────────────
      Quilted fields, a dry crown on every rise, wet green in the hollows,
@@ -5420,6 +5850,7 @@ class Props {
     this._buildTufts();
     this._buildPoles();
     await this._buildPlaces();
+    this.track.checkRails(this.world);
 
     ctx.events.on('quality:change', ({ q }) => this._applyQuality(q));
     this._applyQuality(ctx.q);
@@ -5884,9 +6315,16 @@ class Props {
       const CANOPY = { a0: -1, a1: 14, b0: 2.2, b1: 8.4, eave: st.py + 4.4, ridge: st.py + 5.4 };
       const SIGN = { a: 19, b: 2.9 };
 
-      /* platform */
+      /* platform — carried down to the lowest ground under its footprint, so
+         a station on an embankment stands on a plinth rather than floating
+         a metre or three above the shoulder of the fill */
       const plat = at(0, (PLAT.b0 + PLAT.b1) / 2);
-      mb.box(plat.x, st.py + 0.42, plat.z, PLAT.a1 - PLAT.a0, 1.0, PLAT.b1 - PLAT.b0,
+      let gmin = st.py;
+      for (let a = PLAT.a0; a <= PLAT.a1; a += 3) for (let bb = PLAT.b0; bb <= PLAT.b1; bb += 1.5) {
+        const q = at(a, bb); gmin = Math.min(gmin, this.world.height(q.x, q.z));
+      }
+      const bottom = Math.min(st.py - 0.58, gmin - 0.4);
+      mb.box(plat.x, (PLAT.top + bottom) / 2, plat.z, PLAT.a1 - PLAT.a0, PLAT.top - bottom, PLAT.b1 - PLAT.b0,
              hex('stone'), ang, [1, 1, .92, .92, 1.06, .8]);
       mb.box(at(0, PLAT.b0 + 0.45).x, st.py + 0.46, at(0, PLAT.b0 + 0.45).z,
              PLAT.a1 - PLAT.a0, 0.9, 0.5, new THREE.Color('#E9DDC4'), ang,
@@ -8586,7 +9024,7 @@ const MISSIONS = [
 
   /*── the ten newer places, and the runs between them ──*/
   { id: 'm21', stops: ['orchard'], stars: 12, pic: 'p-apples',
-    say: 'A brand new line! Take the fork out to Appleby Orchard.',
+    say: 'Appleby Orchard is on the main line, up in the north-east corner. Look for the apple trees.',
     txt: 'Go to Appleby Orchard' },
   { id: 'm22', stops: ['tinker'], stars: 12, pic: 'p-tools',
     say: "Tinker's Yard is on the main line, just past the city. Look for the big crane.",
@@ -8598,7 +9036,7 @@ const MISSIONS = [
     say: 'Gull Point, out on the headland. You can see the lighthouse from a long way off.',
     txt: 'Go to Gull Point' },
   { id: 'm25', stops: ['mill'], stars: 14, pic: 'p-flour',
-    say: 'Mill Ford, by the river. Mind the rocks on the way!',
+    say: 'Mill Ford is on the main line where it crosses the river. Look for the wheel turning.',
     txt: 'Go to Mill Ford' },
   { id: 'm26', stops: ['quarry'], stars: 16, pic: 'p-stone',
     say: 'Greystone Quarry is on the mine line, past Coalhill. Keep going!',
@@ -9071,6 +9509,13 @@ class Play {
     }
     this._gateLimit = limit;
 
+    /* Curves. Lateral acceleration is v²/R, and a train that takes a 65 m
+       bend at line speed would be on its side, so the line ahead sets a
+       speed the same way a signal does: look along it, take the tightest
+       radius coming, and hold to the speed a 1.5 m/s² brake can reach it at. */
+    limit = Math.min(limit, this._curveLimit());
+
+
     /* Sheep. They stop the train dead, and only clear in their own time. */
     const fl = ctx.has('flocks') ? ctx.get('flocks') : null;
     if (fl && fl.blocked) {
@@ -9130,7 +9575,27 @@ class Play {
     return lim;
   }
 
+  _curveLimit() {
+    const t = this.train, seg = this.track.segs[t.seg];
+    if (!seg) return CFG.maxSpeed;
+    const n = seg.pts.length, st = seg.step;
+    const A_LAT = 2.4, BRAKE = 1.5, LOOK = 220;
+    const i0 = Math.round(t.s / st);
+    let lim = CFG.maxSpeed;
+    for (let k = 0; k * st <= LOOK; k += 2) {
+      let i = i0 + t.dir * k;
+      if (seg.closed) i = mod(i, n); else if (i < 0 || i >= n) break;
+      const R = 1 / Math.max(1e-6, seg.pts[i].curv || 0);
+      const vc = Math.sqrt(A_LAT * R);
+      if (vc >= CFG.maxSpeed) continue;
+      const d = Math.max(0, k * st - 6);
+      lim = Math.min(lim, Math.sqrt(vc * vc + 2 * BRAKE * d));
+    }
+    return lim;
+  }
+
   _targetDistance() {
+
 
     const tgt = this.target, t = this.train;
     if (!tgt) return Infinity;
@@ -10370,7 +10835,7 @@ function guessQuality() {
 
   const eng = new Engine(canvas);
   window.__eng = eng;                       // for automated testing
-  window.__G = { RIVER_PTS, baseHeight, STATIONS, MISSIONS, biomeMix, WORLD, MB, THREE };
+  window.__G = { RIVER_PTS, baseHeight, STATIONS, MISSIONS, biomeMix, WORLD, MB, THREE, dubinsCSC, BRANCH_RADII };
   eng.save = Save.load();
   eng.setQuality(eng.save.quality == null ? guessQuality() : eng.save.quality);
   eng.uiScreen = 'title';
