@@ -3657,6 +3657,18 @@ class Track {
         const dd = Math.sqrt(best);
         b.shared[i] = dd < 7.5 ? 1 : 0;                 // one trackbed for both
         if (dd < 12) { const mp = main.pts[bj]; b.sharedLat[i] = ((mp.x - q.x) * -q.tz + (mp.z - q.z) * q.tx) >= 0 ? dd : -dd; }
+        /* Turnout timbers. Where the branch is too close to carry its own
+           ties, the loop's ties lengthen to reach under the branch's far
+           rail instead — which is what a real turnout has. Signed in the
+           loop's frame: positive means the branch is on the loop's right. */
+        if (dd < 2.9) {
+          main.tieExt = main.tieExt || new Float32Array(mn);
+          const ext = -b.sharedLat[i];
+          for (let k = -1; k <= 1; k++) {
+            const j = (bj + k + mn) % mn;
+            if (Math.abs(ext) > Math.abs(main.tieExt[j])) main.tieExt[j] = ext;
+          }
+        }
         if (dd < 14.5) {
           b.sharedMain[i] = bj;                          // and one height, out to the parallel run
           /* the height is read at the PROJECTION onto the loop, as a continuous
@@ -4545,8 +4557,12 @@ class Track {
           const a = seg.pts[i], b = seg.pts[Math.min(i + 1, seg.pts.length - 1)];
           const px = lerp(a.x, b.x, u), py = lerp(a.y, b.y, u), pz = lerp(a.z, b.z, u);
           { const l = latAt(i); if (l !== 0 && Math.abs(l) < 2.7) continue; }
-          const ang = Math.atan2(lerp(a.tz, b.tz, u), lerp(a.tx, b.tx, u));
-          mb.box(px, py - 0.055, pz, 0.26, 0.15, 2.55, sleepC, ang,
+          const tx2 = lerp(a.tx, b.tx, u), tz2 = lerp(a.tz, b.tz, u);
+          const ang = Math.atan2(tz2, tx2);
+          // a turnout timber reaches across to the diverging track
+          const ex = seg.tieExt ? lerp(seg.tieExt[i], seg.tieExt[Math.min(i + 1, n - 1)], u) : 0;
+          const tl = 2.55 + Math.abs(ex), ox = -tz2 * ex / 2, oz = tx2 * ex / 2;
+          mb.box(px + ox, py - 0.055, pz + oz, 0.26, 0.15, tl, sleepC, ang,
                  [1, 1, 1, 1, 0.90 + 0.22 * ((k * 37) % 5) / 5, 0.78]);
         }
         const geo = mb.geometry();
