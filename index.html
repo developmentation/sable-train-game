@@ -6366,8 +6366,30 @@ class Props {
   /*── buildings ─────────────────────────────────────────────────────────*/
   /* one helper draws every structure in the valley: walls, a pitched roof
      with real gables and eaves, a door and lit windows */
+  /* Foundations. A building is placed at the ground height under its centre;
+     on a slope the downhill side then hangs in the air. So every footprint is
+     sampled and a footing carried from floor level down to half a metre
+     under the lowest ground beneath it. Returns the floor height it used,
+     raised where needed so no wall starts below the highest ground either. */
+  _footing(mb, cx, cy, cz, w, d, rot, col, opts = {}) {
+    const ca = Math.cos(rot), sa = Math.sin(rot);
+    let gmin = 1e9, gmax = -1e9;
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+      const ox = i * w / 2, oz = j * d / 2;
+      const g = this.world.height(cx + ox * ca - oz * sa, cz + ox * sa + oz * ca);
+      gmin = Math.min(gmin, g); gmax = Math.max(gmax, g);
+    }
+    const floor = opts.keepFloor ? cy : Math.max(cy, gmax + (opts.lift ?? 0.12));
+    const bottom = gmin - (opts.depth ?? 0.5);
+    if (floor - bottom > 0.04)
+      mb.box(cx, (floor + bottom) / 2, cz, w + (opts.grow ?? 0.1), floor - bottom, d + (opts.grow ?? 0.1),
+             col || hex('stone'), rot, [1, 1, .84, .84, 1, .8]);
+    return floor;
+  }
+
   _house(mb, glow, cx, cy, cz, w, d, h, rot, wallCol, roofCol, opts = {}) {
     const ca = Math.cos(rot), sa = Math.sin(rot);
+    cy = this._footing(mb, cx, cy, cz, w, d, rot, opts.footCol || new THREE.Color('#B9AE9A'), { keepFloor: opts.onPlatform });
     const L = (ox, oy, oz) => new THREE.Vector3(cx + ox * ca - oz * sa, cy + oy, cz + ox * sa + oz * ca);
     const hw = w / 2, hd = d / 2;
 
@@ -6484,7 +6506,7 @@ class Props {
       const b = at(HOUSE.a, HOUSE.b);
       this._house(mb, glow, b.x, PLAT.top, b.z, HOUSE.len, HOUSE.dep, HOUSE.wall,
                   ang + (side > 0 ? Math.PI : 0),
-                  hex(r() < 0.5 ? 'wallA' : 'wallB'), hex('roofA'), { windows: 3 });
+                  hex(r() < 0.5 ? 'wallA' : 'wallB'), hex('roofA'), { windows: 3, onPlatform: true });
 
       /* Canopy over the platform. A flat slab reads as a floating grey plate,
          so this is a shallow gable with a fascia at each eave — built as paired
@@ -6575,6 +6597,7 @@ class Props {
         // the clock tower
         const t = at(4, 30);
         const th = this.world.height(t.x, t.z);
+        this._footing(mb, t.x, th, t.z, 5.2, 5.2, ang, hex('stone'));
         mb.box(t.x, th + 7, t.z, 5.2, 14, 5.2, hex('stone'), ang, [1, 1, .9, .9, 1, .8]);
         mb.box(t.x, th + 14.4, t.z, 6.2, 0.9, 6.2, hex('roofSlate'), ang);
         mb.cyl(t.x, th + 17.2, t.z, 0.05, 3.4, 5.0, 4, hex('roofSlate'), 'y', 2);
@@ -6593,6 +6616,7 @@ class Props {
                     hex('roofSlate'), { windows: 2, roofH: 5.5 });
         const si = at(12, 24);
         const sh = this.world.height(si.x, si.z);
+        this._footing(mb, si.x, sh, si.z, 5.0, 5.0, ang, hex('stone'));
         mb.cyl(si.x, sh + 6, si.z, 2.4, 2.6, 12, 12, new THREE.Color('#C9C2B4'));
         mb.blob(si.x, sh + 12.6, si.z, 2.7, 2.0, 2.7, 3, 10, hex('roofSlate'), 0, 3);
         for (let i = 0; i < 5; i++) {
@@ -6624,6 +6648,7 @@ class Props {
         }
         mb.box(hf.x, hh + 16.4, hf.z, 8.4, 1.0, 8.4, hex('timber'), ang);
         mb.cyl(hf.x, hh + 18.4, hf.z, 2.6, 2.6, 0.6, 16, hex('steel'), 'x');
+        this._footing(mb, hf.x, hh, hf.z, 9.5, 9.5, ang, hex('stone'));
         mb.box(hf.x, hh + 2.6, hf.z, 9.5, 5.2, 9.5, hex('roofB'), ang, [1, 1, .9, .9, 1, .8]);
         for (let i = 0; i < 4; i++) {
           const p = at(-16 + i * 4, 34 + i * 3);
@@ -6704,6 +6729,7 @@ class Props {
       case 'works': {                                   // toy factory: sheds and a stack
         const f = at(0, 24);
         const fh = this.world.height(f.x, f.z);
+        this._footing(mb, f.x, fh, f.z, 26, 15, ang, hex('stone'));
         mb.box(f.x, fh + 5, f.z, 26, 10, 15, hex('roofB'), ang, [1, 1, .9, .9, 1, .8]);
         for (let i = 0; i < 4; i++) {
           const p = at(-9 + i * 6, 24);
@@ -6830,6 +6856,7 @@ class Props {
       case 'windmill': {                                // the mill on the hill, sails turning
         const mp = at(2, 34);
         const mh = this.world.height(mp.x, mp.z);
+        this._footing(mb, mp.x, mh, mp.z, 6.8, 6.8, ang, hex('stone'));
         mb.cyl(mp.x, mh + 6.5, mp.z, 2.3, 3.4, 13, 12, new THREE.Color('#E9DDC4'), 'y', 0);
         mb.cyl(mp.x, mh + 14.2, mp.z, 0.3, 2.8, 2.6, 12, hex('roofB'), 'y', 1);
         mb.box(mp.x, mh + 1.2, mp.z, 1.1, 2.3, 0.2, hex('timber'), ang);      // door
@@ -6926,12 +6953,13 @@ class Props {
       }
       case 'castle': {                                  // Ravenstone: walls, towers, a moat, a flag
         const c = at(0, 40);
-        const ch = this.world.height(c.x, c.z);
-        const grass = new THREE.Color('#7FA84E');
-        mb.blob(c.x, ch - 2.0, c.z, 30, 6.5, 30, 4, 12, grass, 0.06, 7);     // the mound
-        const top = ch + 4.2;
         const wall = hex('stone'), dark = new THREE.Color('#A89B82');
         const W = 17, D = 15, WH = 6.5;
+        /* The bailey is a stone plinth: its top a little above the highest
+           ground under the castle, its foot a metre under the lowest, so the
+           walls stand on rock however the hill runs under them. */
+        const ch = this.world.height(c.x, c.z);
+        const top = this._footing(mb, c.x, ch + 1.2, c.z, W * 2 + 3.2, D * 2 + 3.2, ang, dark, { depth: 1.0, lift: 1.2, grow: 0 });
         const L = (ox, oz) => ({ x: c.x + ox * Math.cos(ang) - oz * Math.sin(ang), z: c.z + ox * Math.sin(ang) + oz * Math.cos(ang) });
         // curtain walls
         for (const [ox, oz, sx, sz] of [[0, -D, W * 2, 1.6], [0, D, W * 2, 1.6], [-W, 0, 1.6, D * 2], [W, 0, 1.6, D * 2]]) {
@@ -6978,13 +7006,13 @@ class Props {
         const br = L(0, -D - 8);
         mb.box(br.x, top - 2.4, br.z, 3.6, 0.3, 12, hex('timber'), ang, [1, 1, .9, .9, 1.06, .8]);
         // the moat: a ring of water round the mound
-        const moat = new THREE.Mesh(new THREE.RingGeometry(24, 31, 40), new THREE.MeshLambertMaterial({ color: new THREE.Color(P.wMid) }));
-        moat.rotation.x = -Math.PI / 2;
-        let my = -1e9;
-        for (let a = 0; a < TAU; a += 0.4) my = Math.max(my, this.world.height(c.x + Math.cos(a) * 28, c.z + Math.sin(a) * 28));
-        moat.position.set(c.x, my + 0.15, c.z);
-        moat.matrixAutoUpdate = false; moat.updateMatrix();
-        this.group.add(moat);
+        // the moat follows the ground round the plinth rather than floating at one level
+        {
+          const water = new THREE.Color(P.wMid), N = 40;
+          const ring = (rad) => { const out = []; for (let k = 0; k <= N; k++) { const a = k / N * TAU; const x = c.x + Math.cos(a) * rad, z = c.z + Math.sin(a) * rad; out.push(new THREE.Vector3(x, this.world.height(x, z) + 0.12, z)); } return out; };
+          const inner = ring(24), outer = ring(31);
+          for (let k = 0; k < N; k++) mb.quad(inner[k], outer[k], outer[k + 1], inner[k + 1], water, 1.0);
+        }
         // a treasure chest on the platform
         const tc = at(8, 4.6);
         mb.box(tc.x, y + 1.5, tc.z, 1.8, 1.1, 1.2, hex('timber'), ang);
