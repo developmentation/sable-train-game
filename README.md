@@ -3,9 +3,12 @@
 Drive a little red steam engine through a painted valley, pick the right track at every junction,
 answer the sum (or the word puzzle) at every signal, and deliver the cargo to the station that is
 waiting for it. Built for 5–10 year olds on tablets and laptops: one big power lever, big buttons,
-every instruction read out loud, and a whole valley of stations to unlock — Bramble Town, the
-Toybox Works, Cloverfield Farm, Coalhill Mine, Herring Bay, Star Peak, Pinewood Lodge,
-Coppergate City, Redsand Halt and Eagle Pass on the mountain line.
+every instruction read out loud, and a whole valley of twenty stations to unlock — Bramble Town,
+the Toybox Works, Cloverfield Farm, Coalhill Mine, Herring Bay, Star Peak, Pinewood Lodge,
+Coppergate City, Redsand Halt, Eagle Pass on the mountain line, and now Appleby Orchard, Mill
+Ford, Windmill Hill, Greystone Quarry, Ravenstone Castle, Nugget Gulch, Honeypot Meadow, Gull
+Point, Bluebell Wood and Tinker's Yard. Nine branch lines leave the main loop, and on the ledges
+under the crags there are DANGER boards, and rocks that come down.
 
 **Play online:** https://developmentation.github.io/sable-train-game/
 
@@ -21,7 +24,13 @@ no build step. Progress (stars, deliveries, your train) is saved in the browser.
 | ![A word puzzle at a signal](docs/screenshots/03-signal-puzzle.png) | ![The whole train crossing a viaduct](docs/screenshots/04-whole-train-viaduct.png) |
 | *Every signal asks a sum or a word puzzle; answer it to clear the line* | *"Whole train" camera on the viaduct* |
 | ![Delivery complete](docs/screenshots/05-delivery-complete.png) | ![The depot: pick a delivery](docs/screenshots/06-depot.png) |
-| *Delivery complete — stars earned, a new wagon unlocked* | *The depot: twenty deliveries, unlocked one at a time* |
+| *Delivery complete — stars earned, a new wagon unlocked* | *The depot: thirty-six deliveries, unlocked one at a time* |
+| ![A danger zone: rocks on the line under the crag](docs/screenshots/07-danger-zone.png) | ![Ravenstone Castle](docs/screenshots/08-ravenstone-castle.png) |
+| *A danger zone: creep up and the plough shoves the rock off the line* | *Ravenstone Castle, on the peak line* |
+| ![Windmill Hill](docs/screenshots/09-windmill-hill.png) | ![Mill Ford, the river and the wheel](docs/screenshots/10-mill-ford.png) |
+| *Windmill Hill, on its own little loop off the north side* | *Mill Ford: the river runs in a real channel now, and the wheel turns in it* |
+| ![Gull Point lighthouse at night](docs/screenshots/11-gull-point-night.png) | ![Mirror Tarn in winter](docs/screenshots/12-mirror-tarn-winter.png) |
+| *Gull Point: the lighthouse beam sweeps round all night* | *Bluebell Wood and Mirror Tarn under winter snow* |
 
 ## How to play
 
@@ -32,10 +41,13 @@ no build step. Progress (stars, deliveries, your train) is saved in the browser.
    "count the dots" picture; word puzzles are spelling, opposites and railway words.
 3. **Junctions** — a fork icon appears as you approach a switch. Pick **left** or **right**
    (the ribbon at the top shows which branch leads to your station).
-4. **Stations** — the train slows itself at the platform. Deliver the cargo, collect the stars,
+4. **Danger zones** — where the line runs along a ledge under a crag there is a big yellow
+   DANGER board at each end. Slow down: boulders come off the rock face, and one may stop on the
+   rails. Creep up to it and the engine's plough shoves it over the edge, worth 2 stars.
+5. **Stations** — the train slows itself at the platform. Deliver the cargo, collect the stars,
    then pick the next delivery at the depot. Some deliveries need two stops (load milk at the
-   farm, take it to town).
-5. **My train** — spend the stars on wagons (coal hopper, box, tank, milk, log flat, coach, brake
+   farm, take it to town; apples from the orchard to the mill; gold from the gulch to the castle).
+6. **My train** — spend the stars on wagons (coal hopper, box, tank, milk, log flat, coach, brake
    van), name your engine and repaint the body and trim.
 
 Settings (gear button): sound, read-out-loud voice, puzzle difficulty (ages 5–6, 7–8, 9–10),
