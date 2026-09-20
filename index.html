@@ -2877,6 +2877,31 @@ class MB {
     }
   }
 
+  /* extrude with a profile that may differ ring by ring (same point count) */
+  extrudeVar(path, profAt, col, jitterFn = null) {
+    const rings = [];
+    for (let k = 0; k < path.length; k++) {
+      const p = path[k];
+      const q = path[Math.min(k + 1, path.length - 1)];
+      const o = path[Math.max(k - 1, 0)];
+      _t.set(q.x - o.x, 0, q.z - o.z);
+      if (_t.lengthSq() < 1e-9) _t.set(0, 0, 1);
+      _t.normalize();
+      const rx = -_t.z, rz = _t.x;
+      rings.push(profAt(k).map(pf => new THREE.Vector3(p.x + rx * pf[0], p.y + pf[1], p.z + rz * pf[0])));
+    }
+    for (let k = 0; k < rings.length - 1; k++) {
+      const a = rings[k], b = rings[k + 1], n = a.length;
+      const j = jitterFn ? jitterFn(k) : null;
+      for (let i = 0; i < n; i++) { const i2 = (i + 1) % n; this.quad(a[i], b[i], b[i2], a[i2], col, j); }
+    }
+    const cap = (ring, flip) => {
+      const ctr = new THREE.Vector3(); ring.forEach(p => ctr.add(p)); ctr.multiplyScalar(1 / ring.length);
+      for (let i = 0; i < ring.length; i++) { const i2 = (i + 1) % ring.length; if (flip) this.quad(ctr, ring[i2], ring[i], ring[i], col); else this.quad(ctr, ring[i], ring[i2], ring[i2], col); }
+    };
+    if (rings.length > 1) { cap(rings[0], true); cap(rings[rings.length - 1], false); }
+  }
+
   merge(other, dx = 0, dy = 0, dz = 0) {
     const base = this.count;
     for (let i = 0; i < other.p.length; i += 3) {
@@ -3618,6 +3643,7 @@ class Track {
       b.shared = new Uint8Array(b.pts.length);
       b.sharedMain = new Int32Array(b.pts.length).fill(-1);
       b.sharedS = new Float64Array(b.pts.length);
+      b.sharedLat = new Float32Array(b.pts.length);      // signed: which side the loop is, how far
       const mn = main.pts.length;
       for (let i = 0; i < b.pts.length; i++) {
         const q = b.pts[i];
@@ -3630,6 +3656,7 @@ class Track {
         }
         const dd = Math.sqrt(best);
         b.shared[i] = dd < 7.5 ? 1 : 0;                 // one trackbed for both
+        if (dd < 12) { const mp = main.pts[bj]; b.sharedLat[i] = ((mp.x - q.x) * -q.tz + (mp.z - q.z) * q.tx) >= 0 ? dd : -dd; }
         if (dd < 14.5) {
           b.sharedMain[i] = bj;                          // and one height, out to the parallel run
           /* the height is read at the PROJECTION onto the loop, as a continuous
@@ -4480,15 +4507,29 @@ class Track {
         const inTun = seg.kind && seg.kind[c0] === 1;
         const onBridge = seg.kind && seg.kind[c0] === -1;
 
-        const shared = k => seg.shared && seg.shared[Math.min(k, n - 1)];
+        /* Through a turnout the branch runs a few metres off the loop. Its bed
+           used to stop where it came within 7.5 m, and the loop's bed is only
+           3.5 m wide, so for a stretch the rails stood on nothing. Now the
+           branch keeps a bed everywhere: on the side facing the loop the
+           profile is clipped to end at the loop's shoulder, so the two beds
+           meet as one berm rather than overlap, and only where the branch is
+           actually on the loop's bed (under 2.2 m) is there no bed of its own. */
+        const latAt = k => seg.sharedLat ? seg.sharedLat[Math.min(k, n - 1)] : 0;
+        const onBed = k => { const l = latAt(k); return l !== 0 && Math.abs(l) < 2.2; };
+        const profAt = k => {
+          const l = latAt(k);
+          if (l === 0 || Math.abs(l) >= 7.2) return ballast;
+          const d = Math.abs(l), sg = l > 0 ? 1 : -1;
+          const top = clamp(d - 1.55, 0.3, 1.55), sh = clamp(d - 2.0, top + 0.12, 2.0), foot = clamp(d - 3.5, sh + 0.3, 3.5);
+          return sg > 0
+            ? [[-3.5, -1.5], [foot, -1.5], [sh, -0.08], [top, 0.02], [-1.55, 0.02], [-2.0, -0.08]]
+            : [[-foot, -1.5], [3.5, -1.5], [2.0, -0.08], [1.55, 0.02], [-top, 0.02], [-sh, -0.08]];
+        };
         if (!onBridge) {
-          // the branch gets its own trackbed only where it has left the main
-          // line's; run by run, so it neither starts as a slab in mid-air at
-          // a chunk boundary nor lies buried under the loop's for sixty metres
-          let run = [];
-          const flush = () => { if (run.length > 1) mb.extrude(run, ballast, hex('ballast'), true, k => 0.86 + 0.28 * ((Math.sin(k * 2.7 + c0) * 0.5 + 0.5))); run = []; };
-          for (let i = c0; i < c1; i++) { if (shared(i)) flush(); else run.push(seg.pts[i]); }
-          if (seg.closed && c1 === n && !shared(0)) run.push(seg.pts[0]);
+          let run = [], runI = [];
+          const flush = () => { if (run.length > 1) mb.extrudeVar(run, k => profAt(runI[k]), hex('ballast'), k => 0.86 + 0.28 * ((Math.sin(k * 2.7 + c0) * 0.5 + 0.5))); run = []; runI = []; };
+          for (let i = c0; i < c1; i++) { if (onBed(i)) flush(); else { run.push(seg.pts[i]); runI.push(i); } }
+          if (seg.closed && c1 === n && !onBed(0)) { run.push(seg.pts[0]); runI.push(0); }
           flush();
         }
         mb.extrude(path, railL, hex('steel'), false);
@@ -4503,7 +4544,7 @@ class Track {
           const i = c0 + Math.floor(f), u = f - Math.floor(f);
           const a = seg.pts[i], b = seg.pts[Math.min(i + 1, seg.pts.length - 1)];
           const px = lerp(a.x, b.x, u), py = lerp(a.y, b.y, u), pz = lerp(a.z, b.z, u);
-          if (shared(i)) continue;
+          { const l = latAt(i); if (l !== 0 && Math.abs(l) < 2.7) continue; }
           const ang = Math.atan2(lerp(a.tz, b.tz, u), lerp(a.tx, b.tx, u));
           mb.box(px, py - 0.055, pz, 0.26, 0.15, 2.55, sleepC, ang,
                  [1, 1, 1, 1, 0.90 + 0.22 * ((k * 37) % 5) / 5, 0.78]);
