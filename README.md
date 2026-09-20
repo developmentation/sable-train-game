@@ -12,8 +12,9 @@ under the crags there are DANGER boards, and rocks that come down.
 
 Every line is laid to railway rules: arcs of at least 65 m radius joined by straights and
 reverse curves, a speed limit on every bend, both rails of every branch level with the main line
-through the whole turnout, and a self-check at boot that measures every rail head against the
-ground as drawn and refuses to stay quiet if any is buried.
+through the whole turnout, vertical curves of at least 200 m radius so no gradient ever changes in
+a kink, and a self-check at boot that measures every rail head against the ground as drawn and
+refuses to stay quiet if any is buried.
 
 **Play online:** https://developmentation.github.io/sable-train-game/
 

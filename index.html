@@ -3617,10 +3617,12 @@ class Track {
     for (const b of this.branches) {
       b.shared = new Uint8Array(b.pts.length);
       b.sharedMain = new Int32Array(b.pts.length).fill(-1);
+      b.sharedS = new Float64Array(b.pts.length);
+      const mn = main.pts.length;
       for (let i = 0; i < b.pts.length; i++) {
         const q = b.pts[i];
         let best = 1e18, bj = -1;
-        for (let j = 0; j < main.pts.length; j++) {
+        for (let j = 0; j < mn; j++) {
           const p = main.pts[j];
           const dx = p.x - q.x, dz = p.z - q.z;
           const d2 = dx * dx + dz * dz;
@@ -3628,7 +3630,20 @@ class Track {
         }
         const dd = Math.sqrt(best);
         b.shared[i] = dd < 7.5 ? 1 : 0;                 // one trackbed for both
-        if (dd < 14.5) b.sharedMain[i] = bj;            // and one height, out to the parallel run
+        if (dd < 14.5) {
+          b.sharedMain[i] = bj;                          // and one height, out to the parallel run
+          /* the height is read at the PROJECTION onto the loop, as a continuous
+             arc-length, not at the nearest sample: on the outside of a bend the
+             branch is longer than the loop, consecutive samples skip loop
+             samples, and the nearest-sample height steps by the loop's grade
+             times the skip — a kink a train could feel */
+          const p = main.pts[bj], p2 = main.pts[(bj + 1) % mn], p0 = main.pts[(bj + mn - 1) % mn];
+          const proj = (a, c) => { const ex = c.x - a.x, ez = c.z - a.z, l2 = ex * ex + ez * ez || 1; return clamp(((q.x - a.x) * ex + (q.z - a.z) * ez) / l2, 0, 1); };
+          const uF = proj(p, p2), uB = proj(p0, p);
+          const dF = Math.hypot(q.x - lerp(p.x, p2.x, uF), q.z - lerp(p.z, p2.z, uF));
+          const dB = Math.hypot(q.x - lerp(p0.x, p.x, uB), q.z - lerp(p0.z, p.z, uB));
+          b.sharedS[i] = dF <= dB ? (bj + uF) * main.step : (bj - 1 + uB) * main.step;
+        }
       }
 
 
@@ -3674,6 +3689,43 @@ class Track {
      mean and has no preferred direction, so the loop closes on itself. Coarse
      strides run first so a correction can travel a kilometre in a few passes
      rather than crawling one sample at a time. */
+  /* The vertical equivalent of the radius rule. Limiting the gradient alone
+     still lets it change all at once — flat to five per cent in a single
+     sample — which is a kink a train would pitch over. This caps the rate the
+     gradient changes, i.e. the second difference, to a vertical curve of
+     radius Rv, relaxing symmetrically like the grade limiter and leaving
+     pinned samples where they are. */
+  _limitVertCurve(arr, closed, step, Rv, mask) {
+    const n = arr.length;
+    if (n < 5) return;
+    const at = i => (closed ? mod(i, n) : i);
+    const fixed = k => mask && mask[k] === 1;
+    for (let stride = 64; stride >= 1; stride >>= 1) {
+      const lim = (stride * step) * (stride * step) / Rv;
+      for (let pass = 0; pass < 80; pass++) {
+        let worst = 0;
+        for (let k = 0; k < n; k++) {
+          if (!closed && (k - stride < 0 || k + stride >= n)) continue;
+          const a = at(k - stride), b = at(k), c = at(k + stride);
+          const d2 = arr[a] - 2 * arr[b] + arr[c];
+          const ex = Math.abs(d2) - lim;
+          if (ex <= 0) continue;
+          const e = Math.sign(d2) * ex;
+          // move the middle toward the chord and the ends away, mean preserved,
+          // with a fixed sample's share handed to the others
+          const fa = fixed(a), fb = fixed(b), fc = fixed(c);
+          if (fb) { if (!fa && !fc) { arr[a] -= e * 0.5; arr[c] -= e * 0.5; } else if (!fa) arr[a] -= e; else if (!fc) arr[c] -= e; else continue; }
+          else if (fa && fc) arr[b] += e * 0.5;
+          else if (fa) { arr[b] += e * 0.5 * 0.8; arr[c] -= e * 0.5 * 0.8; }
+          else if (fc) { arr[b] += e * 0.5 * 0.8; arr[a] -= e * 0.5 * 0.8; }
+          else { arr[b] += e * 0.5; arr[a] -= e * 0.25; arr[c] -= e * 0.25; }
+          if (ex > worst) worst = ex;
+        }
+        if (worst < 1e-4) break;
+      }
+    }
+  }
+
   _limitGrade(arr, closed, step, maxGrade, pinEnds, mask) {
     const n = arr.length;
     if (n < 4) return;
@@ -3718,6 +3770,8 @@ class Track {
     this._levelAtStations(h, m);
     this._limitGrade(h, true, m.step, 0.044);
     this._levelAtStations(h, m);
+    this._limitGrade(h, true, m.step, 0.046);
+    this._limitVertCurve(h, true, m.step, 900);
     for (let i = 0; i < h.length; i++) m.pts[i].y = h[i] + 0.55;
 
     const mainYAt = s => {
@@ -3744,7 +3798,7 @@ class Track {
       const matchShared = () => {
         for (let i = 0; i < bh.length; i++) {
           if (b.sharedMain[i] < 0) continue;
-          bh[i] = m.pts[b.sharedMain[i]].y - 0.55;
+          bh[i] = mainYAt(b.sharedS[i]) - 0.55;
           mask[i] = 1;
         }
         bh[0] = mainYAt(b.s0) - 0.55; bh[bh.length - 1] = mainYAt(b.s1) - 0.55;
@@ -3760,9 +3814,18 @@ class Track {
         matchShared(); pinCrossings();
         this._levelAtStations(bh, b);
         this._limitGrade(bh, false, b.step, 0.052, false, mask);
+        this._limitVertCurve(bh, false, b.step, 700, mask);
       }
       matchShared(); pinCrossings();
+      this._limitGrade(bh, false, b.step, 0.052, false, mask);
+      this._limitVertCurve(bh, false, b.step, 700, mask);
+      matchShared(); pinCrossings();
       this._levelAtStations(bh, b);
+      matchShared(); pinCrossings();
+      // the last word goes to smoothness: platforms and pins are already in
+      // place, and this only bends what is between them
+      this._limitGrade(bh, false, b.step, 0.054, false, mask);
+      this._limitVertCurve(bh, false, b.step, 700, mask);
       matchShared(); pinCrossings();
       for (let i = 0; i < bh.length; i++) b.pts[i].y = bh[i] + 0.55;
 
@@ -4418,8 +4481,16 @@ class Track {
         const onBridge = seg.kind && seg.kind[c0] === -1;
 
         const shared = k => seg.shared && seg.shared[Math.min(k, n - 1)];
-        if (!onBridge && !shared(c0)) mb.extrude(path, ballast, hex('ballast'), false,
-          k => 0.86 + 0.28 * ((Math.sin(k * 2.7 + c0) * 0.5 + 0.5)));
+        if (!onBridge) {
+          // the branch gets its own trackbed only where it has left the main
+          // line's; run by run, so it neither starts as a slab in mid-air at
+          // a chunk boundary nor lies buried under the loop's for sixty metres
+          let run = [];
+          const flush = () => { if (run.length > 1) mb.extrude(run, ballast, hex('ballast'), true, k => 0.86 + 0.28 * ((Math.sin(k * 2.7 + c0) * 0.5 + 0.5))); run = []; };
+          for (let i = c0; i < c1; i++) { if (shared(i)) flush(); else run.push(seg.pts[i]); }
+          if (seg.closed && c1 === n && !shared(0)) run.push(seg.pts[0]);
+          flush();
+        }
         mb.extrude(path, railL, hex('steel'), false);
         mb.extrude(path, railR, hex('steel'), false);
 
@@ -4767,6 +4838,15 @@ class Track {
       if (dy > step) { step = dy; stepAt = { line: b.id, s: Math.round(i * b.step) }; }
     }
     report.maxTurnoutStep = +step.toFixed(2); report.turnoutStepAt = stepAt;
+    let kink = 0, kinkAt = null;
+    for (const seg of [this.segs.main, ...this.branches]) {
+      const p = seg.pts, n = p.length;
+      for (let i = 2; i < n - 2; i++) {
+        const d2 = Math.abs(p[i - 2].y - 2 * p[i].y + p[i + 2].y) / (2 * seg.step * 2 * seg.step);
+        if (d2 > kink) { kink = d2; kinkAt = { line: seg.id, s: Math.round(i * seg.step) }; }
+      }
+    }
+    report.minVerticalRadius = Math.round(1 / Math.max(1e-9, kink)); report.verticalRadiusAt = kinkAt;
 
     this.railReport = report;
     if (report.buriedM > 0 || minR < R_MIN - 1 || step > 0.05)
