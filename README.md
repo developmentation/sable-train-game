@@ -10,6 +10,12 @@ Ford, Windmill Hill, Greystone Quarry, Ravenstone Castle, Nugget Gulch, Honeypot
 Point, Bluebell Wood and Tinker's Yard. Seven branch lines leave the main loop, and on the ledges
 under the crags there are DANGER boards, and rocks that come down.
 
+Two more ways up the mountain, each its own game from the depot: the **Skyway**, a cable car
+network strung across the crags of the massif with switching stations where you pick a cable,
+and the **funicular**, a rack-and-cable incline up the face of the mountain with two cars that
+pass each other half way. A silver-and-blue diesel works the main line on its own, and both
+trains keep clear of each other.
+
 Every line is laid to railway rules: arcs of at least 65 m radius joined by straights and
 reverse curves, a speed limit on every bend, both rails of every branch level with the main line
 through the whole turnout, vertical curves of at least 200 m radius so no gradient ever changes in
@@ -39,6 +45,10 @@ no build step. Progress (stars, deliveries, your train) is saved in the browser.
 | *Gull Point: the lighthouse beam sweeps round all night* | *Bluebell Wood and Mirror Tarn under winter snow* |
 | ![A branch rejoining the main line, level through the turnout](docs/screenshots/13-turnout-level.png) | ![Nugget Gulch](docs/screenshots/14-nugget-gulch.png) |
 | *The peak line rejoining beside the tarn: every turnout is level and coplanar for its whole length* | *Nugget Gulch, second stop on the desert line* |
+| ![The Skyway cabin high over the valley](docs/screenshots/15-skyway-cabin.png) | ![The funicular on its rack](docs/screenshots/16-funicular.png) |
+| *The Skyway: a cabin on the long cable from Crag Switch down to Tarn Landing, railway far below* | *The funicular climbing the massif, the other car on its way down* |
+| ![The diesel on the main line](docs/screenshots/17-diesel.png) | ![The depot: the Skyway rides](docs/screenshots/18-depot-skyway.png) |
+| *The diesel, held short of the player's train at Bramble Town* | *The depot's Skyway tab: six rides, unlocked one at a time* |
 
 ## How to play
 
@@ -52,10 +62,14 @@ no build step. Progress (stars, deliveries, your train) is saved in the browser.
 4. **Danger zones** — where the line runs along a ledge under a crag there is a big yellow
    DANGER board at each end. Slow down: boulders come off the rock face, and one may stop on the
    rails. Creep up to it and the engine's plough shoves it over the edge, worth 2 stars.
-5. **Stations** — the train slows itself at the platform. Deliver the cargo, collect the stars,
+5. **Skyway and funicular** — pick a ride from their own tabs in the depot. The same lever drives
+   the cabin or the car, the same left and right buttons pick a cable at a switching station,
+   and set back turns you round at the end of a line. Passengers wait on the decks and ride with
+   you; every switching station has a signal with a sum on it.
+6. **Stations** — the train slows itself at the platform. Deliver the cargo, collect the stars,
    then pick the next delivery at the depot. Some deliveries need two stops (load milk at the
    farm, take it to town; apples from the orchard to the mill; gold from the gulch to the castle).
-6. **My train** — spend the stars on wagons (coal hopper, box, tank, milk, log flat, coach, brake
+7. **My train** — spend the stars on wagons (coal hopper, box, tank, milk, log flat, coach, brake
    van), name your engine and repaint the body and trim.
 
 Settings (gear button): sound, read-out-loud voice, puzzle difficulty (ages 5–6, 7–8, 9–10),
