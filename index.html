@@ -9444,6 +9444,7 @@ const SKY_MAX = 9.0;             // m/s at full lever
 const SKY_HANG = 4.6;            // cable to cabin floor
 const SKY_CLEAR = 10.5;          // least height of the rope above the ground
 const SKY_LANE = 3.6;            // the second rope, for the cabins going the other way
+const SKY_FLAT = 9;              // the rope runs level this far out of every station
 
 class Skyway {
   static id = 'skyway';
@@ -9470,10 +9471,26 @@ class Skyway {
       this.nodes[k] = n;
     }
     this.edges = [];
-    for (const [a, b] of SKY_EDGES) {
-      const e = this._layEdge(this.nodes[a], this.nodes[b]);
-      this.edges.push(e);
-      this.nodes[a].edges.push(e); this.nodes[b].edges.push(e);
+    /* Every cable at a station has to arrive at the same height, or the deck
+       can only match one of them. Lay all the cables, take the highest head
+       each station was given, lay them all again with the heads pinned there,
+       and repeat if the check inside lifted any. */
+    const fixed = {};
+    for (let pass = 0; pass < 4; pass++) {
+      this.edges = [];
+      for (const k in this.nodes) this.nodes[k].edges = [];
+      for (const [a, b] of SKY_EDGES) {
+        const e = this._layEdge(this.nodes[a], this.nodes[b], fixed[a], fixed[b]);
+        this.edges.push(e);
+        this.nodes[a].edges.push(e); this.nodes[b].edges.push(e);
+      }
+      let changed = false;
+      for (const k in this.nodes) {
+        const n = this.nodes[k];
+        const hy = Math.max(...n.edges.map(ed => (ed.a === n ? ed.heads[0] : ed.heads[ed.heads.length - 1]).y));
+        if (fixed[k] == null || Math.abs(fixed[k] - hy) > 0.05) { fixed[k] = hy; changed = true; }
+      }
+      if (!changed) break;
     }
     /* The deck is wherever the cabin floor is when it reaches the station —
        the rope's height there less the hanger — so a station whose ropes had
@@ -9509,7 +9526,7 @@ class Skyway {
   }
 
   /*── laying a cable: pylons wherever the rope would otherwise touch down ──*/
-  _layEdge(a, b) {
+  _layEdge(a, b, fixA, fixB) {
     const L = Math.hypot(b.x - a.x, b.z - a.z);
     const ux = (b.x - a.x) / L, uz = (b.z - a.z) / L;
     /* the ground under the whole width of a cabin on either rope, not just
@@ -9539,22 +9556,27 @@ class Skyway {
        it plus a little per tower. The station heads are candidates too, at a
        choice of heights, so a line that leaves straight up a face can start
        from a taller head rather than from an eighty-metre pylon just outside. */
-    const MAXSPAN = 240, MINSPAN = 36, PITCH = 8;
+    /* The rope runs LEVEL through a station for the first nine metres — held
+       by the guide sheaves, as a real one is — and only then takes its slope.
+       The deck sits under the level stretch, so the cabin floor is at deck
+       height for the whole length of the deck, arriving or leaving. */
+    const MAXSPAN = 240, MINSPAN = 36, PITCH = 8, FLAT = SKY_FLAT;
     const TOWERS = [14, 20, 27, 34, 42, 52, 64];
-    const HEADS = [a.tower, a.tower + 8, a.tower + 16, a.tower + 26];
+    const HEADS_A = fixA != null ? [fixA - a.y] : [a.tower, a.tower + 8, a.tower + 16, a.tower + 26];
+    const HEADS_B = fixB != null ? [fixB - b.y] : [b.tower, b.tower + 8, b.tower + 16, b.tower + 26];
     const nPos = Math.floor(L / PITCH);
-    // candidate nodes: index 0 = station a at each head height, interior positions, station b
+    // candidate nodes: station a at each head height, interior positions, station b
     const cands = [];
-    for (const th of HEADS) cands.push({ s: 0, y: a.y + th, th, station: a, cost: (th - a.tower) * 2.6 });
+    for (const th of HEADS_A) cands.push({ s: FLAT, y: a.y + th, th, station: a, cost: Math.max(0, th - a.tower) * 2.6 });
     for (let i = 1; i < nPos; i++) {
       const s = i * PITCH;
-      if (s < MINSPAN || L - s < MINSPAN) continue;
+      if (s < FLAT + MINSPAN || L - s < FLAT + MINSPAN) continue;
       const g = ground(s);
       for (const th of TOWERS) cands.push({ s, y: g + th, th, cost: th + 10 });
     }
-    for (const th of HEADS) cands.push({ s: L, y: b.y + th, th, station: b, cost: (th - b.tower) * 2.6 });
+    for (const th of HEADS_B) cands.push({ s: L - FLAT, y: b.y + th, th, station: b, cost: Math.max(0, th - b.tower) * 2.6 });
     const best = new Float64Array(cands.length).fill(Infinity), from = new Int32Array(cands.length).fill(-1);
-    for (let i = 0; i < cands.length; i++) if (cands[i].s === 0) best[i] = cands[i].cost;
+    for (let i = 0; i < cands.length; i++) if (cands[i].s === FLAT) best[i] = cands[i].cost;
     for (let i = 0; i < cands.length; i++) {
       if (best[i] === Infinity) continue;
       const ci = cands[i];
@@ -9572,15 +9594,15 @@ class Skyway {
       }
     }
     let end = -1;
-    for (let i = 0; i < cands.length; i++) if (cands[i].s === L && (end < 0 || best[i] < best[end])) end = i;
+    for (let i = 0; i < cands.length; i++) if (cands[i].s === L - FLAT && (end < 0 || best[i] < best[end])) end = i;
     const heads = [];
     if (end >= 0 && best[end] < Infinity) {
       for (let i = end; i >= 0; i = from[i]) heads.unshift(cands[i]);
     } else {
       // no legal path even at the tallest towers: lay it anyway and let the check below lift it
-      heads.push({ s: 0, y: a.y + a.tower, station: a });
-      for (let s = PITCH * Math.ceil(MINSPAN / PITCH); s < L - MINSPAN; s += 120) heads.push({ s, y: ground(s) + 34, th: 34 });
-      heads.push({ s: L, y: b.y + b.tower, station: b });
+      heads.push({ s: FLAT, y: a.y + HEADS_A[0], th: HEADS_A[0], station: a });
+      for (let s = FLAT + MINSPAN; s < L - FLAT - MINSPAN; s += 120) heads.push({ s, y: ground(s) + 34, th: 34 });
+      heads.push({ s: L - FLAT, y: b.y + HEADS_B[0], th: HEADS_B[0], station: b });
     }
     for (const h of heads) if (h.station) h.station.towerUsed = Math.max(h.station.towerUsed || 0, h.th || h.station.tower);
 
@@ -9612,6 +9634,8 @@ class Skyway {
     // the rope itself, sampled every two metres with its sag
     const pts = [];
     let acc = 0;
+    for (let s2 = 0; s2 < FLAT; s2 += 1.5) pts.push({ x: a.x + ux * s2, y: heads[0].y, z: a.z + uz * s2, plan: s2, s: s2 });
+    acc = pts[pts.length - 1].s;
     for (let k = 0; k < heads.length - 1; k++) {
       const h0 = heads[k], h1 = heads[k + 1], span = h1.s - h0.s, sag = sagOf(span);
       const n = Math.max(2, Math.ceil(span / 2));
@@ -9623,8 +9647,15 @@ class Skyway {
         p.s = acc; pts.push(p);
       }
     }
-    const last = { x: b.x, y: heads[heads.length - 1].y, z: b.z, plan: L };
-    const q = pts[pts.length - 1]; acc += Math.hypot(last.x - q.x, last.y - q.y, last.z - q.z); last.s = acc; pts.push(last);
+    {
+      const hy = heads[heads.length - 1].y;
+      for (let s2 = L - FLAT; s2 <= L + 0.01; s2 += 1.5) {
+        const p = { x: a.x + ux * Math.min(s2, L), y: hy, z: a.z + uz * Math.min(s2, L), plan: Math.min(s2, L) };
+        const q = pts[pts.length - 1]; acc += Math.hypot(p.x - q.x, p.y - q.y, p.z - q.z); p.s = acc; pts.push(p);
+      }
+      const q = pts[pts.length - 1];
+      if (q.plan < L - 0.01) { const p = { x: b.x, y: hy, z: b.z, plan: L }; acc += Math.hypot(p.x - q.x, p.y - q.y, p.z - q.z); p.s = acc; pts.push(p); }
+    }
     for (let i = 0; i < pts.length; i++) {
       const p0 = pts[Math.max(0, i - 1)], p1 = pts[Math.min(pts.length - 1, i + 1)];
       const l = Math.hypot(p1.x - p0.x, p1.y - p0.y, p1.z - p0.z) || 1;
@@ -9693,14 +9724,24 @@ class Skyway {
         const gy = this.world.height(gx, gz);
         const H = h.y - gy;
         const mb = new MB();
-        // a tapered lattice-ish mast: two legs and a cap
-        mb.cyl(0, H / 2 - 0.9, 0, 0.55, 1.05, H - 1.8, 8, steel, 'y', 0);
-        mb.box(0, 0.5, 0, 4.0, 1.0, 4.0, hex('stone'), 0, [1, 1, .9, .9, 1, .8]);
-        mb.box(0, H - 1.4, SKY_LANE / 2, 1.4, 0.5, SKY_LANE + 3.2, steel, 0);   // the crossarm, over both ropes
+        /* A portal: a leg outside each rope, where no cabin ever passes, and a
+           crossarm over both. The old single mast stood under the rope, which
+           is exactly where the cabin hangs. Each leg goes down to its own bit
+           of ground and stands on its own footing. */
+        const LEGS = [-2.6, SKY_LANE + 2.6];
+        for (const zl of LEGS) {
+          const wx = gx - Math.sin(ang) * zl, wz = gz + Math.cos(ang) * zl;
+          const gl = this.world.height(wx, wz) - gy;             // relative to the pylon's own ground
+          mb.box(0, gl - 0.3, zl, 2.4, 1.2, 2.4, hex('stone'), 0, [1, 1, .9, .9, 1, .8]);
+          const top = H - 1.4;
+          mb.cyl(0, (gl + top) / 2, zl, 0.42, 0.62, top - gl, 8, steel, 'y', 0);
+        }
+        for (let y = 8; y < H - 6; y += 8) mb.box(0, y, SKY_LANE / 2, 0.22, 0.22, SKY_LANE + 5.2, steel, 0);   // ties between the legs
+        mb.box(0, H - 1.4, SKY_LANE / 2, 1.4, 0.5, SKY_LANE + 6.4, steel, 0);   // the crossarm, over both ropes
         for (const z of [0, SKY_LANE]) {
-          // a sheave battery under each rope, axles across it
-          for (const s2 of [-1, 1]) for (let k = -1; k <= 1; k++) mb.cyl(k * 0.9, H - 0.6, z + s2 * 0.3, 0.42, 0.42, 0.18, 10, dark, 'z');
-          mb.box(0, H - 1.0, z, 2.6, 0.3, 0.9, steel, 0);
+          // a sheave battery under each rope, axles across it, straddling the grip
+          for (const s2 of [-1, 1]) for (let k = -1; k <= 1; k++) mb.cyl(k * 0.9, H - 0.6, z + s2 * 0.55, 0.42, 0.42, 0.18, 10, dark, 'z');
+          mb.box(0, H - 1.0, z, 2.6, 0.3, 1.4, steel, 0);
         }
         mb.box(0, H - 0.15, SKY_LANE / 2, 3.0, 0.16, SKY_LANE + 1.2, steel, 0);
         this._rotY(mb, ang);
@@ -9726,6 +9767,15 @@ class Skyway {
       const ang = Math.atan2(dirx, dirz);               // Object3D convention
       const angM = Math.atan2(dirz, dirx);              // MB convention
       const deckY = n.py - 0.1, headY = n.headY;
+      /* The roof has to clear the rope for the whole length of the deck, and a
+         rope that leaves climbing at forty degrees is seven metres higher at
+         the end of the deck than at the bull wheel. */
+      let slopeOut = 0;
+      for (const ed of n.edges) {
+        const hs = ed.heads, h0 = ed.a === n ? hs[0] : hs[hs.length - 1], h1 = ed.a === n ? hs[1] : hs[hs.length - 2];
+        slopeOut = Math.max(slopeOut, (h1.y - h0.y) / Math.max(1, Math.abs(h1.s - h0.s)));
+      }
+      const roofY = headY + 2.4;
       // the lane rope lies to the right of the cable heading out of the station;
       // for a cable heading in, that is the left — same world side either way
       const laneSide = e.a === n ? 1 : -1;
@@ -9756,9 +9806,9 @@ class Skyway {
       const hp = L(0, -laneSide * 4.9);
       this.props._house(mb, glow, hp.x, deckY, hp.z, 7.0, 3.0, 3.0, angM, wall, hex('roofSlate'), { windows: 2, onPlatform: true, chimney: false });
       for (const [ox, oz] of [[-7, zc - 6.4], [7, zc - 6.4], [-7, zc + 6.4], [7, zc + 6.4]]) {
-        const p = L(ox, oz); mb.cyl(p.x, (deckY + headY + 2.2) / 2, p.z, 0.12, 0.14, headY + 2.2 - deckY, 6, steel);
+        const p = L(ox, oz); mb.cyl(p.x, (deckY + roofY - 0.1) / 2, p.z, 0.12, 0.14, roofY - 0.1 - deckY, 6, steel);
       }
-      mb.box(L(0, zc).x, headY + 2.3, L(0, zc).z, 16, 0.3, 14.4, hex('roofSlate'), angM, [1, 1, .9, .9, 1.1, .8]);
+      mb.box(L(0, zc).x, roofY, L(0, zc).z, 16, 0.3, 14.4, hex('roofSlate'), angM, [1, 1, .9, .9, 1.1, .8]);
       // a bull wheel for each rope
       for (const oz of [0, ZL]) {
         const p = L(0, oz);
@@ -9777,7 +9827,7 @@ class Skyway {
         const p = L(3.0 + i * 1.6, -laneSide * (2.2 + (i % 2) * 0.6));
         this._person(mb, p.x, deckY, p.z, this.rng);
       }
-      n.deckY = deckY; n.ang = ang; n.laneSide = laneSide;
+      n.deckY = deckY; n.ang = ang; n.laneSide = laneSide; n.roofY = roofY;
     }
     const m = new THREE.Mesh(mb.geometry(), MAT.solid);
     m.castShadow = true; m.receiveShadow = true; m.matrixAutoUpdate = false;
@@ -10032,7 +10082,7 @@ class Funicular {
     this.group = new THREE.Group();
     ctx.scene.add(this.group);
 
-    this.length = 8.6;
+    this.length = 11.4;
     this.s = 0; this.dir = 1; this.speed = 0; this.throttle = 0; this.braking = false; this.inTunnel = false;
     this.head = new THREE.Vector3(); this.frontPos = this.head; this.headDir = new THREE.Vector3(1, 0, 0);
 
@@ -10071,7 +10121,8 @@ class Funicular {
       if (key === 'eyrie') {
         // the winding house: a big wheel the rope runs round
         const w = at(-16, 0);
-        mb.box(w.x, st.py + 2.2, w.z, 7, 4.4, 5.4, hex('roofB'), angM, [1, 1, .9, .9, 1, .8]);
+        const wf = this.props._footing(mb, w.x, st.py, w.z, 7, 5.4, angM, hex('stone'));
+        mb.box(w.x, wf + 2.2, w.z, 7, 4.4, 5.4, hex('roofB'), angM, [1, 1, .9, .9, 1, .8]);
         mb.cyl(w.x, st.py + 2.6, w.z, 1.9, 1.9, 0.4, 16, hex('boiler'), 'y');
       }
       // name board
@@ -10102,9 +10153,9 @@ class Funicular {
     const frame = new THREE.Group();
     {
       const mb = new MB();
-      mb.box(0, 0.35, 0, 2.2, 0.3, 8.6, hex('boiler'), 0);                // the chassis, local +Z along the slope
-      for (const z of [-3.4, 3.4]) for (const x of [-0.8, 0.8]) mb.cyl(x, 0.42, z, 0.42, 0.42, 0.16, 12, steel, 'x', 0);
-      for (const z of [-3.4, 3.4]) mb.cyl(0, 0.3, z, 0.3, 0.3, 0.3, 8, hex('brass'), 'x', 0);   // the cogs on the rack
+      mb.box(0, 0.35, 0, 2.2, 0.3, 11.4, hex('boiler'), 0);               // the chassis, local +Z along the slope
+      for (const z of [-4.6, 4.6]) for (const x of [-0.8, 0.8]) mb.cyl(x, 0.42, z, 0.42, 0.42, 0.16, 12, steel, 'x', 0);
+      for (const z of [-4.6, 4.6]) mb.cyl(0, 0.3, z, 0.3, 0.3, 0.3, 8, hex('brass'), 'x', 0);   // the cogs on the rack
       const m = new THREE.Mesh(mb.geometry(), MAT.solid); m.castShadow = true; frame.add(m);
     }
     const comps = [];
@@ -10138,7 +10189,11 @@ class Funicular {
     car.frame.lookAt(o.x + rx * off + o.tx * cs, o.y + CFG.railTop + Math.sin(slope), o.z + rz * off + o.tz * cs);
     const yaw = Math.atan2(o.tx, o.tz);
     for (let k = 0; k < 3; k++) {
-      const sk = clamp(s + (k - 1) * 2.75 * cs, 0, seg.len);
+      /* compartments sit end to end HORIZONTALLY — a box 2.5 m long needs
+         2.5 m of plan length between it and the next, which on the slope is
+         more track than that, so the boxes step up the hill without ever
+         running into one another */
+      const sk = clamp(s + (k - 1) * 2.72, 0, seg.len);      // s is already plan length
       this.track.sample('funi', sk, o2);
       const offk = this.offsetAt(sk, side);
       car.comps[k].position.set(o2.x + (-o2.tz) * offk, o2.y + CFG.railTop + 0.55, o2.z + o2.tx * offk);
