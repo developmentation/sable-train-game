@@ -1362,6 +1362,11 @@ h1.big .sub{display:block;font-size:.44em;letter-spacing:.06em;margin-top:.28em;
   </div>
 
   <div class="panel hide" id="paneTrain" role="tabpanel" aria-labelledby="tabTrain">
+    <h3>Your engine</h3>
+    <div class="seg" id="engineSeg" role="group" aria-label="Engine">
+      <button data-e="steam" aria-pressed="true"><svg width="17" height="17" aria-hidden="true"><use href="#i-loco"/></svg>Steam</button>
+      <button data-e="diesel" aria-pressed="false"><svg width="17" height="17" aria-hidden="true"><use href="#i-diesel"/></svg>Diesel</button>
+    </div>
     <h3>Your train</h3>
     <div class="consist" id="consist"></div>
 
@@ -2102,7 +2107,7 @@ class AudioSys {
 
     ctx.events.on('train:chuff',   p => this.chuff(p.power));
     ctx.events.on('train:joint',   () => this.click());
-    ctx.events.on('train:whistle', () => { if (ctx.vehicle.constructor.id === 'train') this.whistle(); });
+    ctx.events.on('train:whistle', () => { if (ctx.vehicle.constructor.id !== 'train') return; if (ctx.vehicle.diesel) this.horn(); else this.whistle(); });
   }
 
   resume() {
@@ -3260,8 +3265,25 @@ const riverBed = t => {
 /* the water surface, a little under the banks, level across each section */
 const riverSurface = t => Math.max(WATER_Y, riverBed(t) - 0.9);
 
+let SKY_PADS = null, _padBusy = false;
+function skyPads() {
+  if (SKY_PADS || _padBusy || typeof SKY_NODES === 'undefined') return SKY_PADS;
+  _padBusy = true;
+  SKY_PADS = Object.values(SKY_NODES).map(n => ({ x: n.x, z: n.z, y: baseHeight(n.x, n.z) }));
+  _padBusy = false;
+  return SKY_PADS;
+}
+
 function baseHeight(x, z) {
   let h = landHeight(x, z);
+  /* A level pad under every Skyway station, as a railway station gets a
+     level platform: without it a knoll beside the deck puts the ground above
+     the cabin floor and the rope has to leave over a fifty-metre pylon. */
+  const pads = skyPads();
+  if (pads) for (const p of pads) {
+    const d = Math.hypot(x - p.x, z - p.z);
+    if (d < 46) h = lerp(h, p.y, smoothstep(46, 20, d));
+  }
   // the river cuts, never fills
   const rf = riverField(x, z);
   if (rf.d < 130) {
@@ -7848,7 +7870,7 @@ class Train {
     this.track = ctx.get('track');
     this.audio = ctx.get('audio');
 
-    this.cfg = { name: 'Sable', body: '#94403A', trim: '#EADEC2', cars: ['tender', 'hopper'] };
+    this.cfg = { name: 'Sable', body: '#94403A', trim: '#EADEC2', cars: ['tender', 'hopper'], engine: 'steam' };
 
     this.root = new THREE.Group();
     ctx.scene.add(this.root);
@@ -7920,17 +7942,27 @@ class Train {
     this._disposeVehicles();
     const c = this.cfg;
 
+    const diesel = c.engine === 'diesel';
+    this.diesel = diesel;
+
     // locomotive
     const locoGroup = new THREE.Group();
-    const lm = new THREE.Mesh(buildLoco(c).geometry(), MAT.solid);
-    lm.castShadow = true; lm.receiveShadow = true;
-    locoGroup.add(lm);
+    if (diesel) {
+      const d = buildDieselLoco(false);
+      const lm = new THREE.Mesh(d.mb.geometry(), MAT.solid);
+      lm.castShadow = true; lm.receiveShadow = true;
+      locoGroup.add(lm, new THREE.Mesh(d.glow.geometry(), MAT.glow));
+    } else {
+      const lm = new THREE.Mesh(buildLoco(c).geometry(), MAT.solid);
+      lm.castShadow = true; lm.receiveShadow = true;
+      locoGroup.add(lm);
+    }
     this.root.add(locoGroup);
 
-    // rods, one pair, animated every frame
+    // rods, one pair, animated every frame — a diesel has none
     const rodC = new THREE.Color(c.trim);
     this.rods = [];
-    for (const side of [-1, 1]) {
+    for (const side of diesel ? [] : [-1, 1]) {
       const cr = new MB();
       const span = LOCO.drivers[0] - LOCO.drivers[2];
       cr.box(0, 0, span / 2, 0.09, 0.19, span + 0.42, hex('steel'), 0, [1, 1, 1, 1, 1.15, .8]);
@@ -7955,20 +7987,27 @@ class Train {
     }
     this.locoGroup = locoGroup;
 
-    this._vehicles.push({
-      type: 'loco', group: locoGroup, len: LOCO.len, wb: 3.6,
-      wheels: [
-        ...LOCO.drivers.map(z => ({ z, r: LOCO.wheel, pool: 'big', x: 1.02 })),
-        { z: LOCO.pony, r: LOCO.ponyR, pool: 'med', x: 0.98 },
-      ],
-      glow: null,
-    });
+    if (diesel) {
+      const wheels = [];
+      for (const b of [-DIESEL.bogie, DIESEL.bogie]) for (const a of [-DIESEL.axle, DIESEL.axle]) wheels.push({ z: b + a, r: DIESEL.wheel, pool: 'small', x: 0.82 });
+      this._vehicles.push({ type: 'loco', group: locoGroup, len: DIESEL.len, wb: DIESEL.bogie * 2, wheels, glow: null });
+    } else {
+      this._vehicles.push({
+        type: 'loco', group: locoGroup, len: LOCO.len, wb: 3.6,
+        wheels: [
+          ...LOCO.drivers.map(z => ({ z, r: LOCO.wheel, pool: 'big', x: 1.02 })),
+          { z: LOCO.pony, r: LOCO.ponyR, pool: 'med', x: 0.98 },
+        ],
+        glow: null,
+      });
+    }
 
-    // wagons
+    // wagons — a diesel carries its own fuel, so it leaves the tender behind
     for (let i = 0; i < c.cars.length; i++) {
       const type = c.cars[i];
       const t = CAR_TYPES[type];
       if (!t) continue;
+      if (diesel && type === 'tender') continue;
       const g = new THREE.Group();
       const mesh = new THREE.Mesh(buildCar(type, c, 1000 + i * 17).geometry(), MAT.solid);
       mesh.castShadow = true; mesh.receiveShadow = true;
@@ -8147,10 +8186,11 @@ class Train {
        stack is just under a metre *behind* the head. Emitting ahead of it, as
        this used to, threw the plume out in front of the engine and then let it
        drift back down the whole length of the train and into the camera. */
-    const back = LOCO.len / 2 - 3.55;
+    const back = this.diesel ? DIESEL.len / 2 + 6.0 : LOCO.len / 2 - 3.55;
     p.x = this.head.x - f.x * back + r.range(-0.12, 0.12);
-    p.y = this.head.y + 3.55;
+    p.y = this.head.y + (this.diesel ? 5.0 : 3.55);
     p.z = this.head.z - f.z * back + r.range(-0.12, 0.12);
+    p.tint = this.diesel ? 0.42 : 1;                       // diesel exhaust is thin and grey
     // straight up and out of the way, rather than lolling back over the train
     p.vy = 8.5 + power * 7.5;
     p.vx = f.x * this.speed * 0.30 + r.range(-0.6, 0.6) + 1.1;
@@ -8496,7 +8536,7 @@ class Train {
       this._sinceChuff += Math.abs(ds);
       if (this._sinceChuff >= perChuff) {
         this._sinceChuff -= perChuff;
-        if (this.throttle > 0)
+        if (this.throttle > 0 && !this.diesel)
           ctx.events.emit('train:chuff', { power: this.throttle / 4 });
       }
       // one puff every few metres, so the plume thins out as the train speeds
@@ -8674,10 +8714,11 @@ class Train {
       T[i * 3] = p.x; T[i * 3 + 1] = p.y; T[i * 3 + 2] = p.z;
       S[i] = lerp(p.s0, p.s1, Math.pow(u, 0.62));
       A[i] = (1 - u) * (1 - u) * 0.42 * smoothstep(0, 0.06, u);
-      const k = clamp(u * 2.2, 0, 1);
-      C[i * 3] = lerp(hot.r, cold.r, k);
-      C[i * 3 + 1] = lerp(hot.g, cold.g, k);
-      C[i * 3 + 2] = lerp(hot.b, cold.b, k);
+      const k = clamp(u * 2.2, 0, 1), tint = p.tint || 1;
+      if (tint < 1) A[i] *= 0.6;
+      C[i * 3] = lerp(hot.r, cold.r, k) * tint;
+      C[i * 3 + 1] = lerp(hot.g, cold.g, k) * tint;
+      C[i * 3 + 2] = lerp(hot.b, cold.b, k) * tint;
     }
     this.smokeA.needsUpdate = true; this.smokeS.needsUpdate = true;
     this.smokeT.needsUpdate = true; this.smokeC.needsUpdate = true;
@@ -9401,7 +9442,8 @@ const SKY_NODES = {
 const SKY_EDGES = [['base', 'cragsw'], ['cragsw', 'nest'], ['cragsw', 'tarn'], ['nest', 'peak'], ['nest', 'east']];
 const SKY_MAX = 9.0;             // m/s at full lever
 const SKY_HANG = 4.6;            // cable to cabin floor
-const SKY_CLEAR = 9.5;           // least height of the rope above the ground
+const SKY_CLEAR = 10.5;          // least height of the rope above the ground
+const SKY_LANE = 3.6;            // the second rope, for the cabins going the other way
 
 class Skyway {
   static id = 'skyway';
@@ -9433,6 +9475,15 @@ class Skyway {
       this.edges.push(e);
       this.nodes[a].edges.push(e); this.nodes[b].edges.push(e);
     }
+    /* The deck is wherever the cabin floor is when it reaches the station —
+       the rope's height there less the hanger — so a station whose ropes had
+       to leave high stands on a tower rather than leaving its passengers
+       thirty metres below the door. */
+    for (const k in this.nodes) {
+      const n = this.nodes[k];
+      n.headY = Math.max(...n.edges.map(ed => (ed.a === n ? ed.heads[0] : ed.heads[ed.heads.length - 1]).y));
+      n.py = n.headY - SKY_HANG;
+    }
     this._dist = this._allPairs();
 
     this._buildCables();
@@ -9461,10 +9512,18 @@ class Skyway {
   _layEdge(a, b) {
     const L = Math.hypot(b.x - a.x, b.z - a.z);
     const ux = (b.x - a.x) / L, uz = (b.z - a.z) / L;
-    const ground = s => this.world.height(a.x + ux * s, a.z + uz * s);
+    /* the ground under the whole width of a cabin on either rope, not just
+       the centre line — a crag a metre to one side is still a crag */
+    const rx = -uz, rz = ux;
+    const ground = s => {
+      let g = -1e9;
+      for (const o of [-1.6, 0, 1.6, SKY_LANE - 1.6, SKY_LANE + 1.6])
+        g = Math.max(g, this.world.height(a.x + ux * s + rx * o, a.z + uz * s + rz * o));
+      return g;
+    };
     const sagOf = span => clamp(0.016 * span, 0.4, 6);
     // the rope may come down to the station deck over its last forty metres
-    const need = s => { const near = Math.min(s, L - s); return near < 40 ? lerp(5.5, SKY_CLEAR, near / 40) : SKY_CLEAR; };
+    const need = s => { const near = Math.min(s, L - s); return near < 40 ? lerp(7.0, SKY_CLEAR, near / 40) : SKY_CLEAR; };
     const spanOK = (s0, y0, s1, y1) => {
       const sag = sagOf(s1 - s0);
       for (let s = s0; s <= s1; s += 4) {
@@ -9473,22 +9532,82 @@ class Skyway {
       }
       return true;
     };
-    const MAXSPAN = 240, MINSPAN = 45;
-    const heads = [{ s: 0, y: a.y + a.tower, station: a }];
-    let s0 = 0, y0 = heads[0].y, guard = 0;
-    while (guard++ < 60) {
-      const remain = L - s0;
-      if (remain <= MAXSPAN && (spanOK(s0, y0, L, b.y + b.tower) || remain <= MINSPAN * 1.5)) {
-        heads.push({ s: L, y: b.y + b.tower, station: b }); break;
+    /* Where the pylons go is a shortest-path problem: candidate positions every
+       eight metres along the line, candidate tower heights at each, an edge
+       between two candidates wherever a span between them keeps the cabin
+       clear of the ground, and the cost of a path the height of the towers on
+       it plus a little per tower. The station heads are candidates too, at a
+       choice of heights, so a line that leaves straight up a face can start
+       from a taller head rather than from an eighty-metre pylon just outside. */
+    const MAXSPAN = 240, MINSPAN = 36, PITCH = 8;
+    const TOWERS = [14, 20, 27, 34, 42, 52, 64];
+    const HEADS = [a.tower, a.tower + 8, a.tower + 16, a.tower + 26];
+    const nPos = Math.floor(L / PITCH);
+    // candidate nodes: index 0 = station a at each head height, interior positions, station b
+    const cands = [];
+    for (const th of HEADS) cands.push({ s: 0, y: a.y + th, th, station: a, cost: (th - a.tower) * 2.6 });
+    for (let i = 1; i < nPos; i++) {
+      const s = i * PITCH;
+      if (s < MINSPAN || L - s < MINSPAN) continue;
+      const g = ground(s);
+      for (const th of TOWERS) cands.push({ s, y: g + th, th, cost: th + 10 });
+    }
+    for (const th of HEADS) cands.push({ s: L, y: b.y + th, th, station: b, cost: (th - b.tower) * 2.6 });
+    const best = new Float64Array(cands.length).fill(Infinity), from = new Int32Array(cands.length).fill(-1);
+    for (let i = 0; i < cands.length; i++) if (cands[i].s === 0) best[i] = cands[i].cost;
+    for (let i = 0; i < cands.length; i++) {
+      if (best[i] === Infinity) continue;
+      const ci = cands[i];
+      for (let j = i + 1; j < cands.length; j++) {
+        const cj = cands[j], span = cj.s - ci.s;
+        if (span < MINSPAN) continue;
+        if (span > MAXSPAN) break;
+        // a rope may climb at most 42 degrees between heads, and steepness costs
+        const rise = Math.abs(cj.y - ci.y);
+        if (rise / span > 0.9) continue;
+        const c = best[i] + cj.cost + rise * 0.5;
+        if (c >= best[j]) continue;
+        if (!spanOK(ci.s, ci.y, cj.s, cj.y)) continue;
+        best[j] = c; from[j] = i;
       }
-      let placed = null;
-      for (let s1 = Math.min(s0 + MAXSPAN, L - MINSPAN); s1 >= s0 + MINSPAN && !placed; s1 -= 8)
-        for (const th of [14, 20, 27, 34]) {
-          const y1 = ground(s1) + th;
-          if (spanOK(s0, y0, s1, y1)) { placed = { s: s1, y: y1, th }; break; }
+    }
+    let end = -1;
+    for (let i = 0; i < cands.length; i++) if (cands[i].s === L && (end < 0 || best[i] < best[end])) end = i;
+    const heads = [];
+    if (end >= 0 && best[end] < Infinity) {
+      for (let i = end; i >= 0; i = from[i]) heads.unshift(cands[i]);
+    } else {
+      // no legal path even at the tallest towers: lay it anyway and let the check below lift it
+      heads.push({ s: 0, y: a.y + a.tower, station: a });
+      for (let s = PITCH * Math.ceil(MINSPAN / PITCH); s < L - MINSPAN; s += 120) heads.push({ s, y: ground(s) + 34, th: 34 });
+      heads.push({ s: L, y: b.y + b.tower, station: b });
+    }
+    for (const h of heads) if (h.station) h.station.towerUsed = Math.max(h.station.towerUsed || 0, h.th || h.station.tower);
+
+    /* Then go and look. The search above reasons about the rope; this checks
+       the cabin — floor, width and all — against the ground under every two
+       metres of it, and lifts the pylons either side of any span that fails
+       until it passes. A span beside a station lifts the station's own head
+       instead, which raises its deck roof but keeps the deck where it is. */
+    for (let round = 0; round < 8; round++) {
+      let bad = 0;
+      for (let k = 0; k < heads.length - 1; k++) {
+        const h0 = heads[k], h1 = heads[k + 1], span = h1.s - h0.s, sag = sagOf(span);
+        let worst = 0;
+        for (let s2 = h0.s; s2 <= h1.s; s2 += 2) {
+          const t = (s2 - h0.s) / span;
+          const y = lerp(h0.y, h1.y, t) - 4 * sag * t * (1 - t);
+          const near = Math.min(s2, L - s2);
+          const floorNeed = near < 24 ? lerp(0.3, 1.8, near / 24) : 1.8;
+          const deficit = floorNeed - (y - SKY_HANG - 0.3 - ground(s2));
+          if (deficit > worst) worst = deficit;
         }
-      if (!placed) { const s1 = Math.min(s0 + MINSPAN, L - MINSPAN); placed = { s: s1, y: Math.max(y0, ground(s1) + 34), th: 34 }; }
-      heads.push(placed); s0 = placed.s; y0 = placed.y;
+        if (worst > 0.01) {
+          bad++;
+          for (const h of [h0, h1]) { h.y += worst + 0.8; h.th = (h.th || 14) + worst + 0.8; if (h.station) h.station.towerUsed = Math.max(h.station.towerUsed || 0, h.th); }
+        }
+      }
+      if (!bad) break;
     }
     // the rope itself, sampled every two metres with its sag
     const pts = [];
@@ -9504,14 +9623,14 @@ class Skyway {
         p.s = acc; pts.push(p);
       }
     }
-    const last = { x: b.x, y: b.y + b.tower, z: b.z, plan: L };
+    const last = { x: b.x, y: heads[heads.length - 1].y, z: b.z, plan: L };
     const q = pts[pts.length - 1]; acc += Math.hypot(last.x - q.x, last.y - q.y, last.z - q.z); last.s = acc; pts.push(last);
     for (let i = 0; i < pts.length; i++) {
       const p0 = pts[Math.max(0, i - 1)], p1 = pts[Math.min(pts.length - 1, i + 1)];
       const l = Math.hypot(p1.x - p0.x, p1.y - p0.y, p1.z - p0.z) || 1;
       pts[i].tx = (p1.x - p0.x) / l; pts[i].ty = (p1.y - p0.y) / l; pts[i].tz = (p1.z - p0.z) / l;
     }
-    return { a, b, ux, uz, plan: L, len: acc, heads, pts, id: a.id + '-' + b.id };
+    return { a, b, ux, uz, rx, rz, plan: L, len: acc, heads, pts, id: a.id + '-' + b.id };
   }
 
   _allPairs() {
@@ -9540,11 +9659,11 @@ class Skyway {
   _buildCables() {
     const mb = new MB(), rope = new THREE.Color('#3A3F46');
     const prof = []; for (let i = 0; i < 6; i++) { const a = i / 6 * TAU; prof.push([Math.cos(a) * 0.09, Math.sin(a) * 0.09]); }
-    const haul = prof.map(p => [p[0] * 0.6 + 0.55, p[1] * 0.6 - 0.35]);
+    const lane = prof.map(p => [p[0] + SKY_LANE, p[1]]);
     for (const e of this.edges) {
       const path = e.pts.map(p => ({ x: p.x, y: p.y, z: p.z }));
       mb.extrude(path, prof, rope, false);
-      mb.extrude(path, haul, rope, false);
+      mb.extrude(path, lane, rope, false);
     }
     const m = new THREE.Mesh(mb.geometry(), MAT.solidTwo);
     m.matrixAutoUpdate = false; m.frustumCulled = false;
@@ -9553,12 +9672,13 @@ class Skyway {
 
   // rotate an MB about Y by ang, in place
   _rotY(mb, ang) {
+    // local +X → (cos, sin), local +Z → (-sin, cos): the cable's own frame
     const c = Math.cos(ang), s = Math.sin(ang);
     for (let k = 0; k < mb.p.length; k += 3) {
       const x = mb.p[k], z = mb.p[k + 2];
-      mb.p[k] = x * c + z * s; mb.p[k + 2] = -x * s + z * c;
+      mb.p[k] = x * c - z * s; mb.p[k + 2] = x * s + z * c;
       const nx = mb.n[k], nz = mb.n[k + 2];
-      mb.n[k] = nx * c + nz * s; mb.n[k + 2] = -nx * s + nz * c;
+      mb.n[k] = nx * c - nz * s; mb.n[k + 2] = nx * s + nz * c;
     }
   }
 
@@ -9576,13 +9696,13 @@ class Skyway {
         // a tapered lattice-ish mast: two legs and a cap
         mb.cyl(0, H / 2 - 0.9, 0, 0.55, 1.05, H - 1.8, 8, steel, 'y', 0);
         mb.box(0, 0.5, 0, 4.0, 1.0, 4.0, hex('stone'), 0, [1, 1, .9, .9, 1, .8]);
-        mb.box(0, H - 1.4, 0, 1.4, 0.5, 5.2, steel, 0);                  // the crossarm, across the cable
-        for (const s2 of [-1, 1]) {
-          // sheave batteries either side, their axles across the rope
-          for (let k = -1; k <= 1; k++) mb.cyl(k * 0.9, H - 0.6, s2 * 0.3, 0.42, 0.42, 0.18, 10, dark, 'z');
-          mb.box(0, H - 1.0, s2 * 1.9, 0.5, 0.3, 1.4, steel, 0);
+        mb.box(0, H - 1.4, SKY_LANE / 2, 1.4, 0.5, SKY_LANE + 3.2, steel, 0);   // the crossarm, over both ropes
+        for (const z of [0, SKY_LANE]) {
+          // a sheave battery under each rope, axles across it
+          for (const s2 of [-1, 1]) for (let k = -1; k <= 1; k++) mb.cyl(k * 0.9, H - 0.6, z + s2 * 0.3, 0.42, 0.42, 0.18, 10, dark, 'z');
+          mb.box(0, H - 1.0, z, 2.6, 0.3, 0.9, steel, 0);
         }
-        mb.box(0, H - 0.15, 0, 3.0, 0.16, 0.6, steel, 0);
+        mb.box(0, H - 0.15, SKY_LANE / 2, 3.0, 0.16, SKY_LANE + 1.2, steel, 0);
         this._rotY(mb, ang);
         all.merge(mb, gx, gy, gz);
         h.gx = gx; h.gz = gz; h.gy = gy;
@@ -9605,40 +9725,59 @@ class Skyway {
       const dirx = e.a === n ? e.ux : -e.ux, dirz = e.a === n ? e.uz : -e.uz;
       const ang = Math.atan2(dirx, dirz);               // Object3D convention
       const angM = Math.atan2(dirz, dirx);              // MB convention
-      const deckY = n.py - 0.1, headY = n.y + n.tower;
+      const deckY = n.py - 0.1, headY = n.headY;
+      // the lane rope lies to the right of the cable heading out of the station;
+      // for a cable heading in, that is the left — same world side either way
+      const laneSide = e.a === n ? 1 : -1;
       const L = (ox, oz) => ({ x: n.x + ox * dirx - oz * dirz, z: n.z + ox * dirz + oz * dirx });
-      // deck, footing and legs
-      const foot = this.props._footing(mb, n.x, deckY - 0.45, n.z, 14, 9, angM, hex('stone'), { keepFloor: true, depth: 0.6 });
-      mb.box(n.x, deckY - 0.2, n.z, 14, 0.4, 9, deckC, angM, [1, 1, .9, .9, 1.06, .8]);
-      // the cabin passes through the middle: a slot in the railing either side
-      for (const s2 of [-1, 1]) for (let ox = -6.5; ox <= 6.5; ox += 1.3) {
-        const p = L(ox, s2 * 4.3);
-        mb.cyl(p.x, deckY + 0.5, p.z, 0.05, 0.05, 1.0, 4, steel);
+      const ZL = SKY_LANE * laneSide;                     // where the second rope crosses the deck
+      const zc = ZL / 2;                                  // deck centred between the two ropes
+      // deck, wide enough for both ropes and a house beside them — on a plinth
+      // if the ground is close under it, on a tower with braced legs if not
+      const dc = L(0, zc), gUnder = this.world.height(dc.x, dc.z);
+      if (deckY - gUnder < 5) this.props._footing(mb, dc.x, deckY - 0.45, dc.z, 15, 13.6, angM, hex('stone'), { keepFloor: true, depth: 0.6 });
+      else {
+        const gy = this.props._footing(mb, dc.x, gUnder + 0.3, dc.z, 7.5, 7.5, angM, hex('stone'), { depth: 0.8, lift: 0.3 });
+        mb.box(dc.x, (gy + deckY - 0.4) / 2, dc.z, 5.0, deckY - 0.4 - gy, 5.0, hex('stone'), angM, [1, 1, .88, .88, 1, .8]);
+        for (const [ox, oz] of [[-6.8, zc - 6.2], [6.8, zc - 6.2], [-6.8, zc + 6.2], [6.8, zc + 6.2]]) {
+          const p = L(ox, oz), g = this.world.height(p.x, p.z);
+          mb.cyl(p.x, (g + deckY) / 2, p.z, 0.22, 0.3, Math.max(1, deckY - g), 8, steel);
+          mb.box(p.x, g + 0.2, p.z, 1.6, 0.5, 1.6, hex('stone'), angM);
+        }
+        for (let y = gy + 5; y < deckY - 4; y += 6) mb.box(dc.x, y, dc.z, 14.5, 0.3, 0.3, steel, angM);
       }
-      for (const s2 of [-1, 1]) { const p = L(0, s2 * 4.3); mb.box(p.x, deckY + 1.0, p.z, 13.2, 0.08, 0.08, steel, angM); }
-      // the house at the back of the deck, and the roof over the rope
-      const hp = L(-3.5, 0);
-      this.props._house(mb, glow, hp.x, deckY, hp.z, 5.5, 8.2, 3.2, angM, wall, hex('roofSlate'), { windows: 2, onPlatform: true, chimney: false });
-      for (const [ox, oz] of [[-6.5, -4], [6.5, -4], [-6.5, 4], [6.5, 4]]) {
+      mb.box(dc.x, deckY - 0.2, dc.z, 15, 0.4, 13.6, deckC, angM, [1, 1, .9, .9, 1.06, .8]);
+      // railings along both long sides, outside the ropes
+      for (const oz of [zc - 6.6, zc + 6.6]) {
+        for (let ox = -7; ox <= 7; ox += 1.4) { const p = L(ox, oz); mb.cyl(p.x, deckY + 0.5, p.z, 0.05, 0.05, 1.0, 4, steel); }
+        const p = L(0, oz); mb.box(p.x, deckY + 1.0, p.z, 14.2, 0.08, 0.08, steel, angM);
+      }
+      // the house beside the ropes, on the side away from the lane
+      const hp = L(0, -laneSide * 4.9);
+      this.props._house(mb, glow, hp.x, deckY, hp.z, 7.0, 3.0, 3.0, angM, wall, hex('roofSlate'), { windows: 2, onPlatform: true, chimney: false });
+      for (const [ox, oz] of [[-7, zc - 6.4], [7, zc - 6.4], [-7, zc + 6.4], [7, zc + 6.4]]) {
         const p = L(ox, oz); mb.cyl(p.x, (deckY + headY + 2.2) / 2, p.z, 0.12, 0.14, headY + 2.2 - deckY, 6, steel);
       }
-      mb.box(n.x, headY + 2.3, n.z, 15, 0.3, 10, hex('roofSlate'), angM, [1, 1, .9, .9, 1.1, .8]);
-      // the bull wheel the rope turns on
-      mb.cyl(n.x, headY, n.z, 2.2, 2.2, 0.3, 18, hex('boiler'), 'y');
-      mb.cyl(n.x, headY + 0.9, n.z, 0.2, 0.2, 1.6, 6, steel);
+      mb.box(L(0, zc).x, headY + 2.3, L(0, zc).z, 16, 0.3, 14.4, hex('roofSlate'), angM, [1, 1, .9, .9, 1.1, .8]);
+      // a bull wheel for each rope
+      for (const oz of [0, ZL]) {
+        const p = L(0, oz);
+        mb.cyl(p.x, headY, p.z, 1.6, 1.6, 0.3, 18, hex('boiler'), 'y');
+        mb.cyl(p.x, headY + 0.9, p.z, 0.2, 0.2, 1.6, 6, steel);
+      }
       // the name board, facing the deck
       const tex = await this.props._signTexture(n);
       const sg = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 2.0), new THREE.MeshLambertMaterial({ map: tex, side: THREE.DoubleSide }));
-      const sp = L(1.5, -4.0);
+      const sp = L(0, -laneSide * 6.6);
       sg.position.set(sp.x, deckY + 2.6, sp.z); sg.rotation.y = ang + Math.PI / 2;
       sg.matrixAutoUpdate = false; sg.updateMatrix();
       this.group.add(sg);
       // people waiting
       for (let i = 0; i < 3; i++) {
-        const p = L(2.5 + i * 1.6, 2.6 + (i % 2) * 0.8);
+        const p = L(3.0 + i * 1.6, -laneSide * (2.2 + (i % 2) * 0.6));
         this._person(mb, p.x, deckY, p.z, this.rng);
       }
-      n.deckY = deckY; n.ang = ang;
+      n.deckY = deckY; n.ang = ang; n.laneSide = laneSide;
     }
     const m = new THREE.Mesh(mb.geometry(), MAT.solid);
     m.castShadow = true; m.receiveShadow = true; m.matrixAutoUpdate = false;
@@ -9702,7 +9841,8 @@ class Skyway {
     this.speed = 0; this.throttle = 0; this.atEnd = false;
     this.pendingNode = null; this.choice = null;
     this.ctx.events.emit('train:junction', { branch: null });
-    this._place(0);
+    this._swing = 0; this._swingV = 0; this._accel = 0; this._accelS = 0;
+    this._place(0, 0);
   }
   setThrottle(v) {
     const nv = clamp(Math.round(v), 0, 4);
@@ -9780,7 +9920,6 @@ class Skyway {
       if (this.s > this.edge.len || this.s < 0) this._arrive(ctx);
     }
     this._scan(ctx);
-    this._place(h);
   }
 
   _arrive(ctx) {
@@ -9823,11 +9962,19 @@ class Skyway {
     }
   }
 
-  _place(h) {
+  /* Where the cabin is drawn THIS frame: the physics position carried forward
+     by the part of a step the frame has already used up. Without it the cabin
+     advances in whole sixtieths and the camera, which moves every frame,
+     shows every one of them as a jolt. */
+  _place(dt, alpha = 0) {
     const o = this._smp || (this._smp = {});
-    this.sample(this.edge, this.s, o);
-    // the pendulum: the cabin hangs from the grip and lags the acceleration
-    const target = -clamp((this._accel || 0) * this.dir, -2, 2) * 0.12;
+    const sR = clamp(this.s + this.dir * this.speed * clamp(alpha, 0, 1) * (this.ctx ? this.ctx.time.fixed : 1 / 60), 0, this.edge.len);
+    this.sample(this.edge, sR, o);
+    // the pendulum: the cabin hangs from the grip and lags the acceleration,
+    // which is smoothed first so the speed cap's brake does not rattle it
+    this._accelS = lerp(this._accelS || 0, this._accel || 0, Math.min(1, dt * 4));
+    const target = -clamp(this._accelS * this.dir, -2, 2) * 0.12;
+    const h = Math.min(dt, 0.05);
     this._swingV += (target - this._swing) * 6 * h - this._swingV * 2.2 * h;
     this._swing += this._swingV * h;
     const g = this.cabin;
@@ -9841,13 +9988,14 @@ class Skyway {
   }
 
   update(dt, ctx) {
+    this._place(dt, ctx.vehicle === this ? ctx.time.alpha : 0);
     const o = this._smp2 || (this._smp2 = {});
     for (const c of this.others) {
       c.s += c.v * dt;
-      if (c.s > c.e.len - 6) { c.s = c.e.len - 6; c.v = -Math.abs(c.v); }
-      if (c.s < 6) { c.s = 6; c.v = Math.abs(c.v); }
+      if (c.s > c.e.len - 9) { c.s = c.e.len - 9; c.v = -Math.abs(c.v); }
+      if (c.s < 9) { c.s = 9; c.v = Math.abs(c.v); }
       this.sample(c.e, c.s, o);
-      c.g.position.set(o.x, o.y - SKY_HANG, o.z);
+      c.g.position.set(o.x + c.e.rx * SKY_LANE, o.y - SKY_HANG, o.z + c.e.rz * SKY_LANE);
       c.g.rotation.set(0, Math.atan2(o.tx, o.tz) - Math.PI / 2, 0);
     }
   }
@@ -10040,15 +10188,17 @@ class Funicular {
       this._sinceClick = (this._sinceClick || 0) + ds;
       if (this._sinceClick > 3.2) { this._sinceClick = 0; this.audio.click(); }
     }
-    this._place(h);
   }
 
-  _place() {
-    this._placeCar(this.carA, this.s, 1);
-    this._placeCar(this.carB, this.seg.len - this.s, -1);
+  update(dt, ctx) { this._place(ctx.vehicle === this ? ctx.time.alpha : 0); }
+
+  _place(alpha = 0) {
+    const sR = clamp(this.s + this.dir * this.speed * clamp(alpha, 0, 1) * (this.ctx ? this.ctx.time.fixed : 1 / 60), 0, this.seg.len);
+    this._placeCar(this.carA, sR, 1);
+    this._placeCar(this.carB, this.seg.len - sR, -1);
     const o = this._smp;
-    this.track.sample('funi', this.s, o);
-    const off = this.offsetAt(this.s, 1);
+    this.track.sample('funi', sR, o);
+    const off = this.offsetAt(sR, 1);
     this.head.set(o.x + (-o.tz) * off, o.y + CFG.railTop + 1.4, o.z + o.tx * off);
     this.headDir.set(o.tx, 0, o.tz);
     this.headGrade = (o.grade || 0) * this.dir;
@@ -10062,6 +10212,64 @@ class Funicular {
    of the player's way — it stops short if anything is on the line ahead of it
    — and the player's train is held short of it in turn, with a toast, so the
    two can share the loop without either ever touching the other. */
+
+/* The hood unit and its coach, built once here for the diesel that works the
+   loop on its own and for the player, who can choose it in the depot. Local
+   +Z is forward. The player's unit leaves its wheels to the train's spinning
+   wheel pools; the automatic one has them cast in. */
+const DIESEL = { len: 17.5, bogie: 5.78, axle: 1.1, wheel: 0.5 };
+function dieselBogies(mb, len, dark, wheel, withWheels) {
+  for (const z of [-len * 0.33, len * 0.33]) {
+    mb.box(0, 0.85, z, 2.6, 0.7, 3.4, dark, 0);
+    if (withWheels) for (const dz of [-1.1, 1.1]) for (const x of [-0.82, 0.82]) mb.cyl(x, 0.5, z + dz, 0.5, 0.5, 0.16, 14, wheel, 'x', 0);
+  }
+}
+function buildDieselLoco(withWheels = true) {
+  const silver = new THREE.Color('#C7CBCF'), blue = new THREE.Color('#1F3F7E'), yellow = new THREE.Color('#F0C330');
+  const dark = new THREE.Color('#2B2F36'), roof = new THREE.Color('#9AA0A6'), win = new THREE.Color('#DCE9F5');
+  const mb = new MB(), glow = new MB();
+  const L = DIESEL.len, W = 3.0;
+  dieselBogies(mb, L, dark, new THREE.Color('#5A5F66'), withWheels);
+  mb.box(0, 1.5, 0, W, 0.6, L, dark, 0);                                   // frame and fuel tank
+  mb.box(0, 0.95, -1.0, 2.2, 0.9, 5.0, dark, 0);
+  mb.box(0, 3.0, -2.0, W, 2.6, L - 4.0, silver, 0, [1, 1, .94, .94, 1, .85]); // the long hood
+  mb.box(0, 4.45, -2.0, W - 0.4, 0.4, L - 4.6, roof, 0);
+  for (const z of [-5.5, -2.5, 0.5]) mb.cyl(0, 4.72, z, 0.62, 0.62, 0.22, 12, dark, 'y');   // radiator fans
+  mb.box(0, 4.3, -6.0, 0.9, 0.9, 1.4, dark, 0);                            // exhaust
+  // the nose: lower and shorter, with the cab windscreen glowing
+  mb.box(0, 2.6, L / 2 - 1.6, W, 1.8, 3.2, silver, 0, [1, 1, .94, .94, 1, .85]);
+  mb.box(0, 3.75, L / 2 - 2.6, W - 0.5, 0.5, 1.6, roof, 0);
+  glow.quad(new THREE.Vector3(-1.2, 3.1, L / 2), new THREE.Vector3(1.2, 3.1, L / 2), new THREE.Vector3(1.1, 4.1, L / 2 - 0.2), new THREE.Vector3(-1.1, 4.1, L / 2 - 0.2), win);
+  for (const x of [-0.75, 0.75]) glow.quad(new THREE.Vector3(x - 0.28, 2.0, L / 2 + 0.02), new THREE.Vector3(x + 0.28, 2.0, L / 2 + 0.02), new THREE.Vector3(x + 0.28, 2.5, L / 2 + 0.02), new THREE.Vector3(x - 0.28, 2.5, L / 2 + 0.02), new THREE.Color('#FFF3C0'));
+  // livery: the blue band and the yellow stripe right along
+  mb.box(0, 2.55, -2.0, W + 0.04, 1.0, L - 4.0, blue, 0);
+  mb.box(0, 1.95, 0, W + 0.06, 0.16, L - 0.6, yellow, 0);
+  mb.box(0, 3.2, 0, W + 0.06, 0.12, L - 0.6, yellow, 0);
+  // cab side windows
+  for (const x of [-W / 2 - 0.02, W / 2 + 0.02]) {
+    const q = [[x, 3.1, 5.4], [x, 3.1, 7.0], [x, 4.0, 7.0], [x, 4.0, 5.4]].map(v => new THREE.Vector3(...v));
+    if (x > 0) glow.quad(q[0], q[1], q[2], q[3], win); else glow.quad(q[3], q[2], q[1], q[0], win);
+  }
+  return { mb, glow };
+}
+function buildDieselCoach() {
+  const silver = new THREE.Color('#C7CBCF'), blue = new THREE.Color('#1F3F7E'), yellow = new THREE.Color('#F0C330');
+  const dark = new THREE.Color('#2B2F36'), roof = new THREE.Color('#9AA0A6'), win = new THREE.Color('#DCE9F5');
+  const mb = new MB(), glow = new MB();
+  const L = 23, W = 3.0;
+  dieselBogies(mb, L, dark, new THREE.Color('#5A5F66'), true);
+  mb.box(0, 3.05, 0, W, 3.3, L, silver, 0, [1, 1, .94, .94, 1, .85]);
+  mb.box(0, 4.75, 0, W - 0.5, 0.3, L - 0.6, roof, 0);
+  mb.box(0, 2.2, 0, W + 0.04, 0.7, L, blue, 0);
+  mb.box(0, 1.75, 0, W + 0.06, 0.14, L, yellow, 0);
+  for (const x of [-W / 2 - 0.02, W / 2 + 0.02]) {
+    const q = [[x, 3.2, -L / 2 + 1.2], [x, 3.2, L / 2 - 1.2], [x, 4.1, L / 2 - 1.2], [x, 4.1, -L / 2 + 1.2]].map(v => new THREE.Vector3(...v));
+    if (x > 0) glow.quad(q[0], q[1], q[2], q[3], win); else glow.quad(q[3], q[2], q[1], q[0], win);
+    for (let z = -L / 2 + 1.2; z < L / 2 - 1.2; z += 1.9) mb.box(x, 3.65, z, 0.05, 1.1, 0.12, silver, 0);
+    for (const z of [-L / 2 + 0.5, L / 2 - 0.5]) mb.box(x, 2.7, z, 0.05, 2.4, 0.8, dark, 0);
+  }
+  return { mb, glow };
+}
 
 class ViaTrain {
   static id = 'via';
@@ -10078,8 +10286,8 @@ class ViaTrain {
     this.cars = [];
     const silver = new THREE.Color('#C7CBCF'), blue = new THREE.Color('#1F3F7E'), yellow = new THREE.Color('#F0C330');
     const dark = new THREE.Color('#2B2F36'), roof = new THREE.Color('#9AA0A6'), win = new THREE.Color('#DCE9F5');
-    this._add(this._loco(silver, blue, yellow, dark, roof, win), 17.5);
-    for (let i = 0; i < 3; i++) this._add(this._coach(silver, blue, yellow, dark, roof, win), 23);
+    this._add(buildDieselLoco(true), DIESEL.len);
+    for (let i = 0; i < 3; i++) this._add(buildDieselCoach(), 23);
     this.length = this.cars.reduce((a, c) => a + c.len + 1.0, 0);
     this.s = mod(this.track.stations.town.s + 2600, this.track.mainLen);
     this.speed = 0; this.vmax = 17;
@@ -10531,7 +10739,8 @@ class Play {
       const n = sky.nodes[k];
       if (n.edges.length < 3) continue;
       const dx = Math.sin(n.ang), dz = Math.cos(n.ang);
-      placeAt(n.x + 5.5 * dx - 3.6 * dz, n.deckY, n.z + 5.5 * dz + 3.6 * dx, n.ang, { mode: 'sky', node: k });
+      const ls = -(n.laneSide || 1) * 2.4;
+      placeAt(n.x + 6.0 * dx - ls * dz, n.deckY, n.z + 6.0 * dz + ls * dx, n.ang, { mode: 'sky', node: k });
     }
     const fu = this.track.funi;
     if (fu) {
@@ -11165,6 +11374,7 @@ const DEFAULT_SAVE = {
   body: '#94403A',
   trim: '#EADEC2',
   cars: ['tender', 'hopper'],
+  engine: 'steam',
   unlocked: ['tender', 'hopper'],
   stars: 0,
   done: {},
@@ -11207,7 +11417,7 @@ function drawVehicle(cv, type, cfg) {
   g.clearRect(0, 0, W, H);
   const body = cfg.body, trim = cfg.trim, dark = '#2B333C', steel = '#6E7583';
 
-  const t = type === 'loco' ? { len: LOCO.len } : CAR_TYPES[type];
+  const t = type === 'loco' ? { len: cfg.engine === 'diesel' ? DIESEL.len : LOCO.len } : CAR_TYPES[type];
   const scale = (W - 8) / (t.len + 0.6);
   const railY = H - 10;
   const px = v => W / 2 + v * scale;
@@ -11237,6 +11447,23 @@ function drawVehicle(cv, type, cfg) {
   g.fillStyle = '#8A7B63';
   g.fillRect(0, railY, W, 3);
 
+  if (type === 'loco' && cfg.engine === 'diesel') {
+    const HL = DIESEL.len / 2;
+    rr(px(-HL), py(1.3), DIESEL.len * scale, 0.35 * scale, 1, dark);                 // frame
+    rr(px(-HL + 0.2), py(4.3), (DIESEL.len - 3.4) * scale, 3.0 * scale, 3, '#C7CBCF'); // hood
+    rr(px(HL - 3.4), py(3.5), 3.3 * scale, 2.2 * scale, 3, '#C7CBCF');                // nose
+    rr(px(-HL + 0.2), py(3.05), (DIESEL.len - 0.4) * scale, 1.0 * scale, 1, '#1F3F7E'); // blue band
+    rr(px(-HL + 0.2), py(2.0), (DIESEL.len - 0.4) * scale, 0.16 * scale, 1, '#F0C330');
+    rr(px(-HL + 0.2), py(3.3), (DIESEL.len - 0.4) * scale, 0.12 * scale, 1, '#F0C330');
+    g.fillStyle = '#BFD9E6';
+    g.fillRect(px(HL - 3.1), py(4.1), 1.6 * scale, 0.9 * scale);                      // cab window
+    for (const z of [-5.5, -2.5, 0.5]) rr(px(z - 0.6), py(4.6), 1.2 * scale, 0.3 * scale, 2, dark);   // fans
+    for (const b of [-DIESEL.bogie, DIESEL.bogie]) {
+      rr(px(b - 1.7), py(1.2), 3.4 * scale, 0.6 * scale, 2, dark);
+      for (const a of [-DIESEL.axle, DIESEL.axle]) wheel(b + a, DIESEL.wheel, 0);
+    }
+    return;
+  }
   if (type === 'loco') {
     rr(px(-2.9), py(2.9), 3.1 * scale, 1.9 * scale, 3, body);          // cab
     rr(px(-3.0), py(3.15), 3.4 * scale, 0.3 * scale, 3, trim);         // cab roof
@@ -11395,7 +11622,7 @@ class UI {
   /*── save plumbing ─────────────────────────────────────────────────────*/
   _applySave() {
     const s = this.save;
-    this.train.rebuild({ name: s.name, body: s.body, trim: s.trim, cars: s.cars.slice() });
+    this.train.rebuild({ name: s.name, body: s.body, trim: s.trim, cars: s.cars.slice(), engine: s.engine || 'steam' });
     this.play.stars = s.stars;
     this.play.done = s.done || {};
     this.play.age = s.age;
@@ -11412,6 +11639,7 @@ class UI {
     s.body = this.train.cfg.body;
     s.trim = this.train.cfg.trim;
     s.cars = this.train.cfg.cars.slice();
+    s.engine = this.train.cfg.engine || 'steam';
     s.stars = this.play.stars;
     s.done = this.play.done;
     s.age = this.play.age;
@@ -11651,6 +11879,17 @@ class UI {
       this.startMission(next.id);
     });
 
+    for (const b of $$('#engineSeg button')) b.addEventListener('click', () => {
+      const e = b.dataset.e;
+      if (this.train.cfg.engine === e) return;
+      this.train.cfg.engine = e;
+      this.train.rebuild();
+      this.audio.resume();
+      if (e === 'diesel') this.audio.horn(); else this.audio.whistle();
+      this._syncEngine();
+      this.renderConsist();
+      this.persist();
+    });
     const nm = $('#trainName');
     nm.addEventListener('input', () => {
       const v = nm.value.slice(0, 16) || 'Sable';
@@ -11704,7 +11943,12 @@ class UI {
     }
   }
 
+  _syncEngine() {
+    for (const b of $$('#engineSeg button')) b.setAttribute('aria-pressed', String(b.dataset.e === (this.train.cfg.engine || 'steam')));
+  }
+
   renderDepot() {
+    this._syncEngine();
     $('#depotTitle').textContent = this.train.cfg.name + "'s Depot";
     $('#starCount').textContent = this.play.stars;
     this.renderMissions();
@@ -11752,7 +11996,7 @@ class UI {
       const wrap = document.createElement('div');
       wrap.className = 'unit';
       const cv = document.createElement('canvas');
-      const t = type === 'loco' ? { len: LOCO.len } : CAR_TYPES[type];
+      const t = type === 'loco' ? { len: this.train.cfg.engine === 'diesel' ? DIESEL.len : LOCO.len } : CAR_TYPES[type];
       cv.height = 140; cv.width = Math.round(140 * (t.len + 0.6) / 6.6);
       cv.style.height = '70px'; cv.style.width = (cv.width / 2) + 'px';
       drawVehicle(cv, type, this.train.cfg);
@@ -11795,7 +12039,8 @@ class UI {
       host.appendChild(wrap);
     };
     add('loco', null);
-    this.train.cfg.cars.forEach((c, i) => add(c, i));
+    const dieselNow = this.train.cfg.engine === 'diesel';
+    this.train.cfg.cars.forEach((c, i) => { if (!(dieselNow && c === 'tender')) add(c, i); });
   }
 
   renderShop() {

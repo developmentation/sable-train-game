@@ -14,7 +14,7 @@ Two more ways up the mountain, each its own game from the depot: the **Skyway**,
 network strung across the crags of the massif with switching stations where you pick a cable,
 and the **funicular**, a rack-and-cable incline up the face of the mountain with two cars that
 pass each other half way. A silver-and-blue diesel works the main line on its own, and both
-trains keep clear of each other.
+trains keep clear of each other; you can also pick the diesel as your own engine in the depot.
 
 Every line is laid to railway rules: arcs of at least 65 m radius joined by straights and
 reverse curves, a speed limit on every bend, both rails of every branch level with the main line
@@ -69,8 +69,8 @@ no build step. Progress (stars, deliveries, your train) is saved in the browser.
 6. **Stations** — the train slows itself at the platform. Deliver the cargo, collect the stars,
    then pick the next delivery at the depot. Some deliveries need two stops (load milk at the
    farm, take it to town; apples from the orchard to the mill; gold from the gulch to the castle).
-7. **My train** — spend the stars on wagons (coal hopper, box, tank, milk, log flat, coach, brake
-   van), name your engine and repaint the body and trim.
+7. **My train** — choose steam or diesel, spend the stars on wagons (coal hopper, box, tank, milk,
+   log flat, coach, brake van), name your engine and repaint the body and trim.
 
 Settings (gear button): sound, read-out-loud voice, puzzle difficulty (ages 5–6, 7–8, 9–10),
 numbers / words / both, day or night, season (spring, summer, autumn, winter) and picture quality.
