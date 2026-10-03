@@ -16,6 +16,13 @@ and the **funicular**, a rack-and-cable incline up the face of the mountain with
 pass each other half way. A silver-and-blue diesel works the main line on its own, and both
 trains keep clear of each other; you can also pick the diesel as your own engine in the depot.
 
+And a **bullet train**: an eight-car high-speed set in the deep green of Alto, the Toronto–Québec
+line Canada is building, modelled on the Alstom Avelia Horizon that is its likeliest train — two
+power cars with long tapered noses, six double-deck coaches on shared Jacobs bogies, pantographs
+up to a catenary strung the whole way round the main loop. It is a different kind of driving: the
+air is what holds it back, the signals come into view a kilometre and a half out because that is
+what the brakes need from 260 km/h, and every bend has its own limit, read off the line ahead.
+
 Every line is laid to railway rules: arcs of at least 65 m radius joined by straights and
 reverse curves, a speed limit on every bend, both rails of every branch level with the main line
 through the whole turnout, vertical curves of at least 200 m radius so no gradient ever changes in
@@ -49,6 +56,8 @@ no build step. Progress (stars, deliveries, your train) is saved in the browser.
 | *The Skyway: a cabin on the long cable from Crag Switch down to Tarn Landing, railway far below* | *The funicular climbing the massif, the other car on its way down* |
 | ![The diesel on the main line](docs/screenshots/17-diesel.png) | ![The depot: the Skyway rides](docs/screenshots/18-depot-skyway.png) |
 | *The diesel, held short of the player's train at Bramble Town* | *The depot's Skyway tab: six rides, unlocked one at a time* |
+| ![The bullet train at speed on the main line](docs/screenshots/19-bullet-train.png) | ![The bullet train from above, under the wires](docs/screenshots/20-bullet-under-the-wires.png) |
+| *The Alto at 160 km/h: eight cars, two pantographs on the wire* | *Six double-deck coaches on shared bogies, the masts every fifty metres* |
 
 ## How to play
 
@@ -69,8 +78,10 @@ no build step. Progress (stars, deliveries, your train) is saved in the browser.
 6. **Stations** — the train slows itself at the platform. Deliver the cargo, collect the stars,
    then pick the next delivery at the depot. Some deliveries need two stops (load milk at the
    farm, take it to town; apples from the orchard to the mill; gold from the gulch to the castle).
-7. **My train** — choose steam or diesel, spend the stars on wagons (coal hopper, box, tank, milk,
-   log flat, coach, brake van), name your engine and repaint the body and trim.
+7. **My train** — choose steam, diesel or the bullet train, spend the stars on wagons (coal hopper,
+   box, tank, milk, log flat, coach, brake van), name your engine and repaint the body and trim.
+   The bullet train is a fixed set of eight: it starts from the main line, keeps to the wires, and
+   creeps round the branches if you take it down one.
 
 Settings (gear button): sound, read-out-loud voice, puzzle difficulty (ages 5–6, 7–8, 9–10),
 numbers / words / both, day or night, season (spring, summer, autumn, winter) and picture quality.
@@ -98,3 +109,10 @@ run time:
 - [three.js](https://threejs.org/) r185 (MIT), from jsDelivr.
 - [Fredoka](https://fonts.google.com/specimen/Fredoka) typeface (SIL Open Font License), from Google Fonts.
 - Speech uses the browser's built-in Web Speech API.
+
+The bullet train is built in code like everything else, to published dimensions and renderings
+rather than from a downloaded model: Alto's own renderings and route brief
+([altotrain.ca](https://www.altotrain.ca/)), Alstom's Avelia Horizon / TGV M (power car 22.15 m,
+end trailer 21.8 m, intermediate trailers 18.7 m, 2.9 m wide, 320 km/h, articulated on Jacobs
+bogies, two pantographs per power car) and the Euroduplex it descends from. The livery — deep
+green, white wordmark, red maple leaf — is Alto's; the maple leaf is drawn by hand.

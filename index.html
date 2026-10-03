@@ -546,6 +546,7 @@ h1.big .sub{display:block;font-size:.44em;letter-spacing:.06em;margin-top:.28em;
   .setrow .seg{margin-left:0}
   .setrow .toggle{align-self:flex-end;margin-top:-46px}
 }
+.enote{font-size:13px;opacity:.72;margin:-2px 2px 10px;min-height:1em}
 .seg button[aria-pressed="true"]{background:#fff;opacity:1;box-shadow:0 2px 6px rgba(0,0,0,.14)}
 
 .keyhelp{margin-top:16px;font-size:13px;opacity:.62;line-height:1.7;font-weight:500}
@@ -1228,6 +1229,11 @@ h1.big .sub{display:block;font-size:.44em;letter-spacing:.06em;margin-top:.28em;
   <path d="M6 17l9-7 3 4-9 7z" fill="currentColor"/>
   <path d="M8.5 15l4-3 1.4 1.8-4 3z" fill="#fff" opacity=".8"/>
 </symbol>
+<symbol id="i-bullet" viewBox="0 0 24 24">
+  <path d="M2 17v-7.5A2.5 2.5 0 0 1 4.5 7H12c4.6 0 8.2 2.6 10 7v3z" fill="currentColor"/>
+  <path d="M4 12h11" stroke="#fff" stroke-width="1.6" opacity=".7"/>
+  <circle cx="7" cy="19" r="2" fill="currentColor"/><circle cx="17" cy="19" r="2" fill="currentColor"/>
+</symbol>
 <symbol id="i-diesel" viewBox="0 0 24 24">
   <rect x="2" y="7" width="20" height="10" rx="2" fill="currentColor"/>
   <path d="M2 11h20" stroke="#fff" stroke-width="1.6" opacity=".7"/>
@@ -1366,7 +1372,9 @@ h1.big .sub{display:block;font-size:.44em;letter-spacing:.06em;margin-top:.28em;
     <div class="seg" id="engineSeg" role="group" aria-label="Engine">
       <button data-e="steam" aria-pressed="true"><svg width="17" height="17" aria-hidden="true"><use href="#i-loco"/></svg>Steam</button>
       <button data-e="diesel" aria-pressed="false"><svg width="17" height="17" aria-hidden="true"><use href="#i-diesel"/></svg>Diesel</button>
+      <button data-e="bullet" aria-pressed="false"><svg width="17" height="17" aria-hidden="true"><use href="#i-bullet"/></svg>Bullet</button>
     </div>
+    <p class="enote" id="engineNote"></p>
     <h3>Your train</h3>
     <div class="consist" id="consist"></div>
 
@@ -2107,7 +2115,7 @@ class AudioSys {
 
     ctx.events.on('train:chuff',   p => this.chuff(p.power));
     ctx.events.on('train:joint',   () => this.click());
-    ctx.events.on('train:whistle', () => { if (ctx.vehicle.constructor.id !== 'train') return; if (ctx.vehicle.diesel) this.horn(); else this.whistle(); });
+    ctx.events.on('train:whistle', () => { if (ctx.vehicle.constructor.id !== 'train') return; if (ctx.vehicle.bullet) this.klaxon(); else if (ctx.vehicle.diesel) this.horn(); else this.whistle(); });
   }
 
   resume() {
@@ -2340,6 +2348,42 @@ class AudioSys {
     g.gain.linearRampToValueAtTime(0.3, t + 0.02);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
     this.thud(0.7);
+  }
+
+  /* the bullet train's traction whine and slipstream, 0..1 with speed */
+  setWhine(v) {
+    if (!this.ready) return;
+    const t = this.ac.currentTime;
+    if (!this.whine) {
+      if (v <= 0) return;
+      const ac = this.ac;
+      const o = ac.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 90;
+      const o2 = ac.createOscillator(); o2.type = 'triangle'; o2.frequency.value = 180;
+      const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 2.2; f.frequency.value = 400;
+      const g = ac.createGain(); g.gain.value = 0;
+      o.connect(f); o2.connect(f); f.connect(g).connect(this.bus);
+      o.start(); o2.start();
+      this.whine = { o, o2, f, g };
+    }
+    const w = this.whine;
+    w.g.gain.setTargetAtTime(v > 0.01 ? 0.01 + 0.045 * v : 0, t, 0.3);
+    w.o.frequency.setTargetAtTime(90 + 520 * v, t, 0.3);
+    w.o2.frequency.setTargetAtTime(180 + 1040 * v, t, 0.3);
+    w.f.frequency.setTargetAtTime(400 + 1800 * v, t, 0.3);
+  }
+
+  /* the bullet train's two-chord horn: high, then low */
+  klaxon() {
+    if (!this.ready || !this.on) return;
+    const t = this.ac.currentTime;
+    for (const [fq, at, a] of [[740, 0, 0.07], [932, 0, 0.05], [587, 0.42, 0.07], [740, 0.42, 0.05]]) {
+      const { o, g } = this._tone('sawtooth', fq, t + at);
+      g.gain.setValueAtTime(0.0001, t + at);
+      g.gain.linearRampToValueAtTime(a, t + at + 0.05);
+      g.gain.setValueAtTime(a, t + at + 0.42);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + at + 0.7);
+      o.stop(t + at + 0.75);
+    }
   }
 
   /* the diesel's two-tone horn */
@@ -6265,6 +6309,7 @@ class Props {
     this._buildRocks();
     this._buildTufts();
     this._buildPoles();
+    this._buildCatenary();
     await this._buildPlaces();
     this.track.checkRails(this.world);
 
@@ -6562,6 +6607,85 @@ class Props {
   }
 
   /*── telegraph poles: the detail that says "railway" more than any other ─*/
+  /*── the overhead line on the main loop ────────────────────────────────
+     For the bullet train. Masts every fifty-odd metres, a cantilever to a
+     contact wire over the rail and a messenger wire above it with droppers
+     between. Masts are left out of tunnels, off bridges and rock ledges, off
+     the shared bed of a turnout and clear of the platforms; the wire itself
+     breaks only for the tunnels, whose bores are lower than it. */
+  _buildCatenary() {
+    const main = this.track.segs.main, n = main.pts.length, st = main.step;
+    const steel = new THREE.Color('#6E7378'), copper = new THREE.Color('#5A4A3C');
+    const WIRE = 5.3, MSG = 6.2, LAT = 3.7;
+    const clearance = (x, z) => {
+      let best = 1e18;
+      for (const s of this.track.branches) {
+        const stride = Math.max(1, Math.floor(4 / s.step));
+        for (let i = 0; i < s.pts.length; i += stride) { const p = s.pts[i]; const d2 = (p.x - x) ** 2 + (p.z - z) ** 2; if (d2 < best) best = d2; }
+      }
+      return Math.sqrt(best);
+    };
+    const nearPlatform = s => {
+      for (const k in this.track.stations) {
+        const s2 = this.track.stations[k];
+        if (s2.seg !== 'main') continue;
+        let d = Math.abs(s2.s - s); d = Math.min(d, main.len - d);
+        if (d < 48) return true;
+      }
+      return false;
+    };
+    // the mast: local +Z along the track, the arm reaching in on -X; the pole
+    // runs on below the origin so it still reaches the ground off a slope
+    const mastMB = new MB();
+    mastMB.cyl(0, 2.1, 0, 0.10, 0.17, 10.2, 7, steel);
+    mastMB.box(-LAT / 2, MSG + 0.15, 0, LAT, 0.09, 0.09, steel);
+    mastMB.box(-LAT * 0.72, WIRE + 0.42, 0, LAT * 0.56, 0.08, 0.08, steel);
+    mastMB.box(-LAT * 0.45, (MSG + WIRE) / 2 + 0.28, 0, 0.07, MSG - WIRE - 0.3, 0.07, steel);
+    mastMB.box(-LAT + 0.02, WIRE + 0.17, 0, 0.11, 0.42, 0.11, new THREE.Color('#B8B8B0'));   // the insulator over the wire
+    const mastGeo = mastMB.geometry();
+    const masts = [];
+    const every = Math.round(54 / st);
+    for (let i = 0; i < n; i += every) {
+      if (main.kind[i] !== 0 || this.track.inDanger(main, i) || nearPlatform(i * st)) continue;
+      const p = main.pts[i], rx = -p.tz, rz = p.tx;
+      const preferred = ((i / every) | 0) % 2 ? 1 : -1;
+      for (const side of [preferred, -preferred]) {
+        const x = p.x + rx * LAT * side, z = p.z + rz * LAT * side;
+        if (clearance(x, z) < 3.4) continue;
+        masts.push({ x, y: p.y - 0.5, z, a: Math.atan2(p.tx, p.tz) + (side > 0 ? Math.PI : 0) });
+        break;
+      }
+    }
+    const im = new THREE.InstancedMesh(mastGeo, MAT.solid, masts.length);
+    im.castShadow = true; im.frustumCulled = false;
+    const m4 = new THREE.Matrix4(), qt = new THREE.Quaternion(), pv = new THREE.Vector3(), sv = new THREE.Vector3(1, 1, 1), ax = new THREE.Vector3(0, 1, 0);
+    masts.forEach((m, k) => { qt.setFromAxisAngle(ax, m.a); pv.set(m.x, m.y, m.z); im.setMatrixAt(k, m4.compose(pv, qt, sv)); });
+    this.group.add(im);
+    // the wires, in runs between the tunnels
+    const wmb = new MB();
+    const prof = [[-0.035, -0.035], [0.035, -0.035], [0.035, 0.035], [-0.035, 0.035]];
+    const contact = prof.map(p => [p[0], p[1] + WIRE]), messenger = prof.map(p => [p[0], p[1] + MSG]);
+    let run = [];
+    const flush = () => {
+      if (run.length > 2) {
+        wmb.extrude(run, contact, copper, false);
+        wmb.extrude(run, messenger, steel, false);
+        for (let k = 2; k < run.length - 2; k += 5) { const p = run[k]; wmb.box(p.x, p.y + (WIRE + MSG) / 2, p.z, 0.04, MSG - WIRE, 0.04, steel); }
+      }
+      run = [];
+    };
+    for (let i = 0; i <= n; i++) {
+      const j = i % n;
+      if (main.kind[j] === 1) { flush(); continue; }
+      run.push(main.pts[j]);
+    }
+    flush();
+    const wm = new THREE.Mesh(wmb.geometry(), MAT.solidTwo);
+    wm.matrixAutoUpdate = false; wm.frustumCulled = false;
+    this.group.add(wm);
+    this.catenaryMasts = masts.length;
+  }
+
   _buildPoles() {
     const mb = new MB();
     const t = hex('trunk');
@@ -7568,6 +7692,236 @@ class Props {
    than faked with a spin, because watching the rods go round is half the point
    of a train for a six-year-old. */
 
+/*──────────────────────────── §6b  THE BULLET TRAIN ─────────────────────────*/
+/* An Alto-liveried high-speed set in the Avelia Horizon mould — the kind of
+   train Canada's Toronto–Québec line is most likely to receive: two power
+   cars with long tapered noses, six double-deck trailers riding on shared
+   Jacobs bogies, deep green with the white wordmark and the maple leaf,
+   pantographs up to the wire. The dimensions follow the real thing — 22.15 m
+   power cars, 18.7 m trailers, 2.9 m wide, a little over four metres to the
+   roof — and the set is articulated for real: adjacent trailers pivot on one
+   bogie between them, so a joint is a point on the rail that both cars share.
+
+   Winter fittings as the Alto brief asks for: a plough under each nose, bogie
+   skirts and high headlamps. All of it is built here from sections, in the
+   same hand as the rest of the valley, rather than imported. */
+
+const BULLET = {
+  power: 22.15, end: 20.8, mid: 18.7, width: 2.9, roof: 4.1, floor: 0.95,
+  nose: 9.5, wheel: 0.5, axle: 1.5, pbogie: 6.4,
+  vmax: 72,               // m/s — 259 km/h on the straights; the bends set the rest
+  pull: 1.3, brake: 4.2, brakeRate: 2.2, latAccel: 5.0,
+  green: '#1C4A3C', dark: '#143A2E', roofC: '#2A4A40', frame: '#22262B', win: '#CFE3EA',
+};
+const BULLET_CONSIST = ['bpower', 'bend', 'bmid', 'bmid', 'bmid', 'bmid', 'bend', 'bpower'];
+const BULLET_TYPES = {
+  bpower: { name: 'Power car', len: BULLET.power },
+  bend:   { name: 'End trailer', len: BULLET.end },
+  bmid:   { name: 'Double-deck trailer', len: BULLET.mid },
+};
+
+/* A rounded cross-section of the body — half-width w, floor f, roof r — as a
+   fixed sixteen points, counter-clockwise, so one section lofts into another. */
+function bulletSection(w, f, r) {
+  const pts = [];
+  const rc = Math.max(0.05, Math.min(w * 0.55, (r - f) * 0.2)), bc = Math.max(0.04, Math.min(0.22, w * 0.3, (r - f) * 0.2));
+  const arc = (cx, cy, rad, a0, a1, n) => { for (let i = 0; i <= n; i++) { const a = a0 + (a1 - a0) * i / n; pts.push([cx + Math.cos(a) * rad, cy + Math.sin(a) * rad]); } };
+  arc(-w + bc, f + bc, bc, Math.PI, Math.PI * 1.5, 2);
+  arc(w - bc, f + bc, bc, Math.PI * 1.5, Math.PI * 2, 2);
+  arc(w - rc, r - rc, rc, 0, Math.PI / 2, 4);
+  arc(-w + rc, r - rc, rc, Math.PI / 2, Math.PI, 4);
+  return pts;
+}
+/* the nose: how wide, how high and how low the body is at u (0 at the tip, 1 at the shoulder) */
+function bulletNose(u) {
+  const W = BULLET.width / 2, F = BULLET.floor, R = BULLET.roof;
+  const e = 1 - Math.pow(1 - u, 2.6), eTop = 1 - Math.pow(1 - u, 1.7);
+  return { w: lerp(0.55, W, Math.pow(e, 0.8)), r: lerp(F + 0.95, R, eTop), f: lerp(F + 0.35, F, Math.min(1, u * 3)) };
+}
+
+/* the body loft along local +Z (forward); the nose is at the +Z end */
+function bulletBody(mb, L, col, nose) {
+  const W = BULLET.width / 2, F = BULLET.floor, R = BULLET.roof;
+  const path = [], profAt = [], N = nose ? 64 : 12;
+  for (let i = 0; i <= N; i++) {
+    // sections crowd into the nose, where the shape changes
+    let z;
+    if (nose) { const t = i / N; z = -L / 2 + L * (t < 0.3 ? t * (L - BULLET.nose) / (0.3 * L) : (L - BULLET.nose) / L + ((t - 0.3) / 0.7) * BULLET.nose / L); }
+    else z = -L / 2 + L * i / N;
+    let w = W, f = F, r = R;
+    if (nose && z > L / 2 - BULLET.nose + 1e-6) { const nn = bulletNose((L / 2 - z) / BULLET.nose); w = nn.w; f = nn.f; r = nn.r; }
+    path.push({ x: 0, y: 0, z: Math.min(z, L / 2) });
+    profAt.push(bulletSection(w, f, r));
+  }
+  mb.extrudeVar(path, k => profAt[k], col, k => 0.94 + 0.08 * (k % 2));
+}
+
+/* a square rod from a to b, for the pantograph arms */
+function bulletRod(mb, a, b, w, col) {
+  const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b);
+  const d = B.clone().sub(A).normalize();
+  const u = Math.abs(d.x) < 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 0, 1);
+  const n1 = u.clone().cross(d).normalize().multiplyScalar(w / 2), n2 = d.clone().cross(n1).normalize().multiplyScalar(w / 2);
+  const c = (p, s1, s2) => p.clone().add(n1.clone().multiplyScalar(s1)).add(n2.clone().multiplyScalar(s2));
+  const a0 = c(A, -1, -1), a1 = c(A, 1, -1), a2 = c(A, 1, 1), a3 = c(A, -1, 1);
+  const b0 = c(B, -1, -1), b1 = c(B, 1, -1), b2 = c(B, 1, 1), b3 = c(B, -1, 1);
+  mb.quad(a0, a1, b1, b0, col); mb.quad(a1, a2, b2, b1, col); mb.quad(a2, a3, b3, b2, col); mb.quad(a3, a0, b0, b3, col);
+  mb.quad(a0, a3, a2, a1, col); mb.quad(b0, b1, b2, b3, col);
+}
+
+function bulletBogie(mb, z, frameC) {
+  const a = BULLET.axle;
+  mb.box(0, 0.72, z, 2.3, 0.46, 2 * a + 1.0, frameC, 0);
+  for (const dz of [-a, a]) mb.box(0, 0.5, z + dz, 1.5, 0.26, 0.5, frameC, 0);            // axles
+  for (const x of [-1.47, 1.47]) mb.box(x, 0.98, z, 0.07, 0.62, 2 * a + 1.5, frameC, 0);  // the winter skirt
+}
+
+/* one car of the set. opts.rearBogie draws a second bogie at the rear pivot,
+   for the trailer that meets the trailing power car. */
+function buildBulletCar(type, opts = {}) {
+  const mb = new MB(), glow = new MB(), marks = [];
+  const green = new THREE.Color(BULLET.green), dark = new THREE.Color(BULLET.dark), roofC = new THREE.Color(BULLET.roofC);
+  const frameC = new THREE.Color(BULLET.frame), win = new THREE.Color(BULLET.win), red = new THREE.Color('#C8102E');
+  const L = BULLET_TYPES[type].len, power = type === 'bpower';
+  const W = BULLET.width / 2, F = BULLET.floor, R = BULLET.roof;
+  const V = a => new THREE.Vector3(...a);
+  bulletBody(mb, L, green, power);
+  // underframe and roof line
+  const bodyL = power ? L - BULLET.nose : L;
+  const bodyZ = power ? -L / 2 + bodyL / 2 : 0;
+  mb.box(0, F - 0.08, bodyZ, BULLET.width - 0.5, 0.18, bodyL - 0.6, frameC, 0);
+  mb.box(0, R + 0.02, bodyZ, BULLET.width - 1.1, 0.1, bodyL - 1.6, roofC, 0);
+  const bogies = [];
+
+  if (power) {
+    const zTip = L / 2;
+    const nz = z => bulletNose((zTip - z) / BULLET.nose);
+    // the windscreen: a raked pane laid on the slope of the nose
+    const zA = zTip - 4.4, zB = zTip - 6.6, nA = nz(zA), nB = nz(zB);
+    glow.quad(V([-nA.w * 0.62, nA.r + 0.05, zA]), V([nA.w * 0.62, nA.r + 0.05, zA]),
+              V([nB.w * 0.58, nB.r + 0.05, zB]), V([-nB.w * 0.58, nB.r + 0.05, zB]), win);
+    // headlamps high on the nose, as a winter train has them, and the red tail lamps
+    for (const x of [-0.4, 0.4]) {
+      const z1 = zTip - 1.3, z2 = zTip - 2.0, y1 = nz(z1).r + 0.04, y2 = nz(z2).r + 0.04;
+      glow.quad(V([x - 0.18, y1, z1]), V([x + 0.18, y1, z1]), V([x + 0.18, y2, z2]), V([x - 0.18, y2, z2]), new THREE.Color('#FFF6D8'));
+      const z3 = zTip - 2.5, z4 = zTip - 2.95, y3 = nz(z3).r + 0.04, y4 = nz(z4).r + 0.04;
+      glow.quad(V([x * 1.5 - 0.12, y3, z3]), V([x * 1.5 + 0.12, y3, z3]), V([x * 1.5 + 0.12, y4, z4]), V([x * 1.5 - 0.12, y4, z4]), red);
+    }
+    // the snow plough under the nose
+    const pf = F - 0.72;
+    mb.quad(V([-1.25, pf, zTip - 2.6]), V([1.25, pf, zTip - 2.6]), V([0.35, pf, zTip - 0.3]), V([-0.35, pf, zTip - 0.3]), frameC, 1.05);
+    mb.quad(V([-1.25, pf, zTip - 2.6]), V([-0.35, pf, zTip - 0.3]), V([-0.35, F + 0.3, zTip - 0.3]), V([-1.25, F + 0.3, zTip - 2.6]), frameC, 0.9);
+    mb.quad(V([0.35, pf, zTip - 0.3]), V([1.25, pf, zTip - 2.6]), V([1.25, F + 0.3, zTip - 2.6]), V([0.35, F + 0.3, zTip - 0.3]), frameC, 0.9);
+    mb.quad(V([-0.35, pf, zTip - 0.3]), V([0.35, pf, zTip - 0.3]), V([0.35, F + 0.3, zTip - 0.3]), V([-0.35, F + 0.3, zTip - 0.3]), frameC, 1.0);
+    // cab side windows, following the taper
+    for (const s of [-1, 1]) {
+      const z1 = zTip - 5.2, z2 = zTip - 6.8;
+      const x1 = s * (nz(z1).w + 0.02), x2 = s * (nz(z2).w + 0.02);
+      const q = [V([x2, F + 1.6, z2]), V([x1, F + 1.6, z1]), V([x1, F + 2.15, z1]), V([x2, F + 2.15, z2])];
+      if (s < 0) glow.quad(q[0], q[1], q[2], q[3], win); else glow.quad(q[3], q[2], q[1], q[0], win);
+    }
+    // machine-room grilles along the body
+    for (let z = -L / 2 + 1.6; z < zTip - BULLET.nose - 1.2; z += 2.4) for (const s of [-1, 1]) mb.box(s * (W + 0.01), F + 2.05, z, 0.04, 0.5, 1.6, dark, 0);
+    // bogies
+    for (const z of [-BULLET.pbogie, BULLET.pbogie]) { bulletBogie(mb, z, frameC); bogies.push(z); }
+    // the coupler to the trailers
+    mb.box(0, F - 0.1, -L / 2 - 0.4, 0.3, 0.3, 0.8, frameC, 0);
+    // pantograph, raised to the wire
+    const pz = -L / 2 + 5.0, pb = R + 0.12, headY = 4.95;
+    mb.box(0, pb + 0.1, pz, 1.9, 0.2, 2.6, frameC, 0);
+    for (const x of [-0.45, 0.45]) mb.box(x, pb + 0.55, pz, 0.12, 0.9, 0.12, new THREE.Color('#B8B8B0'), 0);     // insulators
+    const kneeY = pb + 1.0, kneeZ = pz + 1.5;
+    for (const x of [-0.3, 0.3]) bulletRod(mb, [x, pb + 0.3, pz], [x * 0.5, kneeY, kneeZ], 0.09, frameC);     // lower arms
+    bulletRod(mb, [0, kneeY, kneeZ], [0, headY - 0.05, pz - 0.6], 0.08, frameC);                               // upper arm
+    bulletRod(mb, [0, pb + 0.3, pz + 0.9], [0, kneeY - 0.15, kneeZ + 0.1], 0.05, frameC);                      // the stay
+    mb.box(0, headY, pz - 0.6, 1.5, 0.06, 0.25, frameC, 0);
+    mb.box(0, headY + 0.045, pz - 0.6, 1.5, 0.03, 0.09, new THREE.Color('#B0B4B8'), 0);
+    // the wordmark on each flank
+    for (const s of [-1, 1]) marks.push({ x: s * (W + 0.015), y: F + 1.2, z: -L / 2 + 5.0, side: s, w: 2.4 });
+  } else {
+    // double deck: two bands of windows each side, pillars between, doors at the ends
+    for (const s of [-1, 1]) {
+      const x = s * (W + 0.015);
+      for (const [y0, y1] of [[F + 0.5, F + 1.3], [F + 1.95, F + 2.5]]) {
+        const q = [V([x, y0, -L / 2 + 1.6]), V([x, y0, L / 2 - 1.6]), V([x, y1, L / 2 - 1.6]), V([x, y1, -L / 2 + 1.6])];
+        if (s < 0) glow.quad(q[0], q[1], q[2], q[3], win); else glow.quad(q[3], q[2], q[1], q[0], win);
+        for (let z = -L / 2 + 1.6; z <= L / 2 - 1.6 + 1e-6; z += 1.65) mb.box(x, (y0 + y1) / 2, z, 0.05, y1 - y0 + 0.08, 0.16, green, 0);
+      }
+      for (const z of [-L / 2 + 0.85, L / 2 - 0.85]) mb.box(x, F + 1.3, z, 0.05, 2.3, 0.95, dark, 0);
+      marks.push({ x, y: F + 1.63, z: 0, side: s, w: 1.6 });
+    }
+    // the bogie at the forward pivot is shared with the car in front
+    bulletBogie(mb, L / 2, frameC); bogies.push(L / 2);
+    if (opts.rearBogie) { bulletBogie(mb, -L / 2, frameC); bogies.push(-L / 2); }
+    // inter-car gangway bellows
+    for (const z of [-L / 2, L / 2]) mb.box(0, (F + R) / 2 - 0.1, z, 2.3, R - F - 0.5, 0.36, dark, 0);
+  }
+  return { mb, glow, marks, len: L, wb: power ? 2 * BULLET.pbogie : L, bogies };
+}
+
+/* "ALTO" with its maple leaf, drawn once to a canvas and used on every flank */
+let _wordmarkTex = null;
+function bulletWordmarkTexture() {
+  if (_wordmarkTex) return _wordmarkTex;
+  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 192;
+  const g = cv.getContext('2d');
+  g.clearRect(0, 0, 512, 192);
+  g.fillStyle = '#FFFFFF'; g.textBaseline = 'middle'; g.textAlign = 'left';
+  g.font = 'italic 900 150px Fredoka, "Arial Black", system-ui, sans-serif';
+  g.fillText('ALTO', 18, 100);
+  const lx = 446, ly = 54, s = 1.9;
+  g.fillStyle = '#C8102E'; g.beginPath();
+  const leaf = [[0, -22], [4, -10], [12, -13], [9, -1], [20, -3], [17, 5], [23, 9], [9, 17], [11, 24], [2, 21], [2, 32], [-2, 32], [-2, 21], [-11, 24], [-9, 17], [-23, 9], [-17, 5], [-20, -3], [-9, -1], [-12, -13], [-4, -10]];
+  leaf.forEach(([x, y], i) => i ? g.lineTo(lx + x * s, ly + y * s) : g.moveTo(lx + x * s, ly + y * s));
+  g.closePath(); g.fill();
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  _wordmarkTex = tex; return tex;
+}
+
+/* the depot's side view of one car; px/py map metres along and up to the canvas */
+function drawBulletCar(g, type, px, py, scale) {
+  const green = BULLET.green, dark = BULLET.dark, frame = BULLET.frame, win = BULLET.win;
+  const L = BULLET_TYPES[type].len, HL = L / 2, F = BULLET.floor, R = BULLET.roof;
+  const rr = (x, y, w, h, r, fill) => { g.beginPath(); if (g.roundRect) g.roundRect(x, y, w, h, r); else g.rect(x, y, w, h); g.fillStyle = fill; g.fill(); };
+  const wheel = (z) => { g.beginPath(); g.arc(px(z), py(BULLET.wheel), BULLET.wheel * scale, 0, TAU); g.fillStyle = dark; g.fill(); g.beginPath(); g.arc(px(z), py(BULLET.wheel), BULLET.wheel * 0.55 * scale, 0, TAU); g.fillStyle = '#6E7583'; g.fill(); };
+  const bog = type === 'bpower' ? [-BULLET.pbogie, BULLET.pbogie] : type === 'bend' ? [-HL + 0.4, HL - 0.4] : [HL - 0.4];
+  for (const b of bog) { rr(px(b - 1.9), py(1.0), 3.8 * scale, 0.5 * scale, 2, frame); for (const a of [-BULLET.axle, BULLET.axle]) wheel(b + a); }
+  if (type === 'bpower') {
+    rr(px(-HL + 0.3), py(F + 0.1), (L - BULLET.nose - 0.3) * scale, 0.2 * scale, 1, frame);
+    g.fillStyle = green; g.beginPath();
+    g.moveTo(px(-HL), py(F)); g.lineTo(px(HL - BULLET.nose), py(F));
+    g.lineTo(px(HL - 2.4), py(F + 0.1)); g.quadraticCurveTo(px(HL), py(F + 0.3), px(HL), py(F + 0.9));
+    g.quadraticCurveTo(px(HL - 1.5), py(F + 1.6), px(HL - 4.0), py(R - 0.75));
+    g.quadraticCurveTo(px(HL - 7.0), py(R + 0.02), px(HL - BULLET.nose), py(R));
+    g.lineTo(px(-HL), py(R)); g.closePath(); g.fill();
+    g.fillStyle = win; g.beginPath();
+    g.moveTo(px(HL - 4.4), py(F + 2.3)); g.lineTo(px(HL - 6.6), py(R - 0.3)); g.lineTo(px(HL - 7.6), py(R - 0.3)); g.lineTo(px(HL - 5.6), py(F + 2.3)); g.closePath(); g.fill();
+    rr(px(HL - 6.8), py(F + 2.15), 1.6 * scale, 0.55 * scale, 1, win);
+    // plough, grilles, pantograph
+    g.fillStyle = frame; g.beginPath(); g.moveTo(px(HL - 2.6), py(F + 0.3)); g.lineTo(px(HL - 0.3), py(F + 0.3)); g.lineTo(px(HL - 0.3), py(F - 0.7)); g.closePath(); g.fill();
+    for (let z = -HL + 1.6; z < HL - BULLET.nose - 1.2; z += 2.4) rr(px(z - 0.8), py(F + 2.3), 1.6 * scale, 0.5 * scale, 1, dark);
+    rr(px(-HL + 1.2), py(R + 0.12), (L - BULLET.nose - 1.6) * scale, 0.1 * scale, 1, BULLET.roofC);
+    g.strokeStyle = frame; g.lineWidth = Math.max(1.5, 0.09 * scale);
+    g.beginPath(); g.moveTo(px(-HL + 5.0), py(R + 0.3)); g.lineTo(px(-HL + 6.5), py(R + 1.1)); g.lineTo(px(-HL + 4.4), py(R + 1.85)); g.stroke();
+    rr(px(-HL + 3.6), py(R + 1.9), 1.5 * scale, 0.08 * scale, 1, frame);
+    g.fillStyle = '#FFF6D8'; g.fillRect(px(HL - 1.9), py(F + 1.55), 0.7 * scale, 0.25 * scale);
+    g.fillStyle = '#fff'; g.font = 'italic 900 ' + Math.max(8, 0.95 * scale) + 'px Fredoka, "Arial Black", sans-serif'; g.textBaseline = 'middle';
+    g.fillText('ALTO', px(-HL + 3.4), py(F + 1.2));
+  } else {
+    rr(px(-HL + 0.3), py(F + 0.1), (L - 0.6) * scale, 0.2 * scale, 1, frame);
+    rr(px(-HL), py(R), L * scale, (R - F) * scale, 4, green);
+    rr(px(-HL + 0.8), py(R + 0.12), (L - 1.6) * scale, 0.1 * scale, 1, BULLET.roofC);
+    for (const [y0, y1] of [[F + 0.5, F + 1.3], [F + 1.95, F + 2.5]]) {
+      rr(px(-HL + 1.6), py(y1), (L - 3.2) * scale, (y1 - y0) * scale, 1, win);
+      g.fillStyle = green;
+      for (let z = -HL + 1.6; z <= HL - 1.6 + 1e-6; z += 1.65) g.fillRect(px(z) - Math.max(0.5, 0.08 * scale), py(y1), Math.max(1, 0.16 * scale), (y1 - y0) * scale);
+    }
+    for (const z of [-HL + 0.85, HL - 0.85]) rr(px(z - 0.47), py(F + 2.45), 0.95 * scale, 2.3 * scale, 1, dark);
+    g.fillStyle = '#fff'; g.font = 'italic 900 ' + Math.max(8, 0.6 * scale) + 'px Fredoka, "Arial Black", sans-serif'; g.textBaseline = 'middle';
+    g.fillText('ALTO', px(-1.1), py(F + 1.63));
+  }
+}
+
 const CAR_TYPES = {
   tender:  { name: 'Coal tender', len: 5.8, wb: 1.85, wheel: 0.55, cost: 0, fixed: true },
   hopper:  { name: 'Coal hopper', len: 6.4, wb: 1.9, wheel: 0.48, cost: 0 },
@@ -7942,9 +8296,15 @@ class Train {
     this._disposeVehicles();
     const c = this.cfg;
 
-    const diesel = c.engine === 'diesel';
-    this.diesel = diesel;
+    const diesel = c.engine === 'diesel', bullet = c.engine === 'bullet';
+    this.diesel = diesel; this.bullet = bullet;
+    this.vmax = bullet ? BULLET.vmax : CFG.maxSpeed;
+    this.brakeRate = bullet ? BULLET.brakeRate : 1.5;     // what the signals and bends may assume of the brakes
+    this.latAccel = bullet ? BULLET.latAccel : 2.4;       // what the bends may ask of the suspension
+    // the chase camera stands further back from a train with a nine-metre nose
+    this.camProfile = bullet ? { D: 34, H: 11, cabY: 3.3 } : null;
 
+    if (bullet) this._buildBullet(); else {
     // locomotive
     const locoGroup = new THREE.Group();
     if (diesel) {
@@ -8022,17 +8382,55 @@ class Train {
       });
     }
 
+    }
+
     // lay out the distance of each vehicle behind the head
     let d = 0;
     for (const v of this._vehicles) {
       d += v.len / 2;
       v.dist = d;
-      d += v.len / 2 + COUPLE;
+      d += v.len / 2 + (v.couple ?? COUPLE);
     }
     this.length = d;
     this._layoutWheels(c);
     this._syncFront(0);
     this._place(true);
+  }
+
+  /* The fixed eight-car set. Trailers are placed by their pivots: a trailer's
+     wheelbase is its whole length, and there is no coupling gap between two
+     trailers, so the rear pivot of one is the front pivot of the next — one
+     bogie, drawn once, on the rail under the joint. The power cars are coupled
+     conventionally and the trailing one faces backwards. */
+  _buildBullet() {
+    this.rods = [];
+    const tex = bulletWordmarkTexture();
+    const n = BULLET_CONSIST.length;
+    BULLET_CONSIST.forEach((type, i) => {
+      const rear = i === n - 1, last = type === 'bend' && i > 1;
+      const b = buildBulletCar(type, { rearBogie: last });
+      const g = new THREE.Group(), inner = new THREE.Group();
+      if (rear) inner.rotation.y = Math.PI;
+      const mesh = new THREE.Mesh(b.mb.geometry(), MAT.solid);
+      mesh.castShadow = true; mesh.receiveShadow = true;
+      inner.add(mesh);
+      if (!b.glow.empty) inner.add(new THREE.Mesh(b.glow.geometry(), MAT.glow));
+      for (const m of b.marks) {
+        const pl = new THREE.Mesh(new THREE.PlaneGeometry(m.w, m.w * 192 / 512),
+                                  new THREE.MeshBasicMaterial({ map: tex, transparent: true, fog: true }));
+        pl.position.set(m.x, m.y, m.z);
+        pl.rotation.y = m.side > 0 ? Math.PI / 2 : -Math.PI / 2;
+        inner.add(pl);
+      }
+      g.add(inner);
+      this.root.add(g);
+      const wheels = [];
+      for (const bz of b.bogies) for (const a of [-BULLET.axle, BULLET.axle])
+        wheels.push({ z: (rear ? -1 : 1) * (bz + a), r: BULLET.wheel, pool: 'small', x: 0.82 });
+      this._vehicles.push({ type, group: g, len: b.len, wb: b.wb, wheels, glow: null,
+                            couple: (type === 'bpower' || last) ? 1.2 : 0 });
+      if (i === 0) this.locoGroup = g;
+    });
   }
 
   _buildWheelPools() {
@@ -8047,12 +8445,12 @@ class Train {
     };
     mk('big', LOCO.wheel, 12, 8);
     mk('med', LOCO.ponyR, 8, 8);
-    mk('small', 0.50, 8, 40);
+    mk('small', 0.50, 8, 72);
   }
 
   _layoutWheels(cfg) {
     // recolour the wheel faces to the livery
-    const face = new THREE.Color(cfg.body);
+    const face = new THREE.Color(this.bullet ? BULLET.frame : cfg.body);
     for (const key in this.pools) {
       const p = this.pools[key];
       p.geo.dispose();
@@ -8216,11 +8614,15 @@ class Train {
     const o = {};
     for (let i = N; i >= 0; i--) {
       const ds = -i * 0.4;
-      let sq = this.s + ds;
-      if (this.seg === 'main') sq = mod(sq, this.track.mainLen);
-      else sq = Math.max(0, sq);
-      this.track.sample(this.seg, sq, o);
-      this._pushTrail(o.x, o.y + CFG.railTop, o.z, (N - i) * 0.4, true, this.segIndex(this.seg), sq);
+      let sq = this.s + ds, segId = this.seg;
+      if (segId === 'main') sq = mod(sq, this.track.mainLen);
+      else if (sq < 0) {
+        // behind the start of a branch is the main line, back from the turnout
+        segId = 'main';
+        sq = mod(this.track.segs[this.seg].s0 + sq, this.track.mainLen);
+      }
+      this.track.sample(segId, sq, o);
+      this._pushTrail(o.x, o.y + CFG.railTop, o.z, (N - i) * 0.4, true, this.segIndex(segId), sq);
     }
     /* Continue counting from where the prefill left off. Resetting dist to zero
        here puts a cliff in the trail's distance axis: the newest sample says
@@ -8440,7 +8842,8 @@ class Train {
     }
   }
 
-  get speedLimit() { return this._limit ?? CFG.maxSpeed; }
+  get speedLimit() { return this._limit ?? this.maxSpeed; }
+  get maxSpeed() { return this.vmax || CFG.maxSpeed; }
   set speedLimit(v) { this._limit = v; }
 
   fixedUpdate(h, ctx) {
@@ -8448,24 +8851,27 @@ class Train {
     this.track.sample(this.seg, this.s, o);
 
     // ── longitudinal dynamics: enough physics to feel like weight ──
-    const cap = Math.min(CFG.maxSpeed, this.speedLimit);
-    const want = (this.throttle / 4) * CFG.maxSpeed;
+    const VMAX = this.maxSpeed;
+    const cap = Math.min(VMAX, this.speedLimit);
+    const want = (this.throttle / 4) * VMAX;
     const grade = o.grade || 0;
     let a = 0;
-    if (this.braking) a = -7.5;
+    if (this.braking) a = this.bullet ? -BULLET.brake : -7.5;
     else {
-      const pull = (this.throttle / 4) * 3.1;
+      const pull = (this.throttle / 4) * (this.bullet ? BULLET.pull : 3.1);
       const gap = want - this.speed;
       a = clamp(gap * 0.8, -2.2, pull);
       a -= grade * 11.5;                        // hills actually slow you down
-      a -= 0.035 * this.speed;                  // rolling resistance
+      /* rolling resistance — and for the bullet train the air, which is what
+         really limits it: drag grows with the square of the speed */
+      a -= this.bullet ? this.speed * (0.004 + 0.00011 * this.speed) : 0.035 * this.speed;
       if (this.throttle === 0) a = Math.min(a, -0.55);
     }
     /* The signal's own brake. This is applied whatever the driver is doing with
        the regulator, and with more authority than the curve above assumes, so
        the train always comes to a stand at a signal it has not answered. */
     if (this.speed > cap) a = Math.min(a, cap <= 0.05 ? -4.5 : -3.6);
-    this.speed = clamp(this.speed + a * h, 0, CFG.maxSpeed * 1.02);
+    this.speed = clamp(this.speed + a * h, 0, VMAX * 1.02);
     /* Only snap to a dead stop when nothing is asking the engine to move.
        Clamping unconditionally traps the train: one frame of acceleration on a
        gradient is smaller than any sensible threshold, so it would zero itself
@@ -8536,7 +8942,7 @@ class Train {
       this._sinceChuff += Math.abs(ds);
       if (this._sinceChuff >= perChuff) {
         this._sinceChuff -= perChuff;
-        if (this.throttle > 0 && !this.diesel)
+        if (this.throttle > 0 && !this.diesel && !this.bullet)
           ctx.events.emit('train:chuff', { power: this.throttle / 4 });
       }
       // one puff every few metres, so the plume thins out as the train speeds
@@ -8545,7 +8951,7 @@ class Train {
       const perPuff = 3.0 + this.speed * 0.16;
       if (this._sincePuff >= perPuff) {
         this._sincePuff = 0;
-        if (this.throttle > 0) this.emitPuff(this.throttle / 4);
+        if (this.throttle > 0 && !this.bullet) this.emitPuff(this.throttle / 4);
       }
       ctx.events.emit('train:move', { s: this.s, seg: this.seg, speed: this.speed });
     } else {
@@ -8642,7 +9048,8 @@ class Train {
     this._syncFront(ctx.time.alpha);
     this._place(false);
     this._updateSmoke(dt, ctx);
-    this.audio.setSpeed(clamp(this.speed / CFG.maxSpeed, 0, 1));
+    this.audio.setSpeed(clamp(this.speed / this.maxSpeed, 0, 1));
+    this.audio.setWhine(this.bullet ? clamp(this.speed / this.maxSpeed, 0, 1) : 0);
   }
 
   _place(force) {
@@ -8791,7 +9198,7 @@ class Cam {
     const t = ctx.vehicle;
     // the render-time front, so the boom is not chasing a stepped target
     const head = t.frontPos, dir = t.headDir;
-    const sp = clamp(t.speed / CFG.maxSpeed, 0, 1);
+    const sp = clamp(t.speed / (t.maxSpeed || CFG.maxSpeed), 0, 1);
     const k = Math.min(1, dt * 60);
 
     // ease the look-around back to straight ahead when the player lets go
@@ -10303,7 +10710,7 @@ function buildDieselLoco(withWheels = true) {
   // cab side windows
   for (const x of [-W / 2 - 0.02, W / 2 + 0.02]) {
     const q = [[x, 3.1, 5.4], [x, 3.1, 7.0], [x, 4.0, 7.0], [x, 4.0, 5.4]].map(v => new THREE.Vector3(...v));
-    if (x > 0) glow.quad(q[0], q[1], q[2], q[3], win); else glow.quad(q[3], q[2], q[1], q[0], win);
+    if (x < 0) glow.quad(q[0], q[1], q[2], q[3], win); else glow.quad(q[3], q[2], q[1], q[0], win);
   }
   return { mb, glow };
 }
@@ -10319,7 +10726,7 @@ function buildDieselCoach() {
   mb.box(0, 1.75, 0, W + 0.06, 0.14, L, yellow, 0);
   for (const x of [-W / 2 - 0.02, W / 2 + 0.02]) {
     const q = [[x, 3.2, -L / 2 + 1.2], [x, 3.2, L / 2 - 1.2], [x, 4.1, L / 2 - 1.2], [x, 4.1, -L / 2 + 1.2]].map(v => new THREE.Vector3(...v));
-    if (x > 0) glow.quad(q[0], q[1], q[2], q[3], win); else glow.quad(q[3], q[2], q[1], q[0], win);
+    if (x < 0) glow.quad(q[0], q[1], q[2], q[3], win); else glow.quad(q[3], q[2], q[1], q[0], win);
     for (let z = -L / 2 + 1.2; z < L / 2 - 1.2; z += 1.9) mb.box(x, 3.65, z, 0.05, 1.1, 0.12, silver, 0);
     for (const z of [-L / 2 + 0.5, L / 2 - 0.5]) mb.box(x, 2.7, z, 0.05, 2.4, 0.8, dark, 0);
   }
@@ -10388,7 +10795,7 @@ class ViaTrain {
     // cab side windows
     for (const x of [-W / 2 - 0.02, W / 2 + 0.02]) {
       const q = [[x, 3.1, 5.4], [x, 3.1, 7.0], [x, 4.0, 7.0], [x, 4.0, 5.4]].map(v => new THREE.Vector3(...v));
-      if (x > 0) glow.quad(q[0], q[1], q[2], q[3], win); else glow.quad(q[3], q[2], q[1], q[0], win);
+      if (x < 0) glow.quad(q[0], q[1], q[2], q[3], win); else glow.quad(q[3], q[2], q[1], q[0], win);
     }
     return { mb, glow };
   }
@@ -10404,7 +10811,7 @@ class ViaTrain {
     // a window band each side, and the end doors
     for (const x of [-W / 2 - 0.02, W / 2 + 0.02]) {
       const q = [[x, 3.2, -L / 2 + 1.2], [x, 3.2, L / 2 - 1.2], [x, 4.1, L / 2 - 1.2], [x, 4.1, -L / 2 + 1.2]].map(v => new THREE.Vector3(...v));
-      if (x > 0) glow.quad(q[0], q[1], q[2], q[3], win); else glow.quad(q[3], q[2], q[1], q[0], win);
+      if (x < 0) glow.quad(q[0], q[1], q[2], q[3], win); else glow.quad(q[3], q[2], q[1], q[0], win);
       for (let z = -L / 2 + 1.2; z < L / 2 - 1.2; z += 1.9) mb.box(x, 3.65, z, 0.05, 1.1, 0.12, silver, 0);
       for (const z of [-L / 2 + 0.5, L / 2 - 0.5]) mb.box(x, 2.7, z, 0.05, 2.4, 0.8, dark, 0);
     }
@@ -10414,7 +10821,7 @@ class ViaTrain {
   /* the gap from the player's leading end to the nearest part of this train,
      measured along the loop the way the player is going */
   gapAhead(t) {
-    if (t.seg !== 'main') return Infinity;
+    if (this.stabled || t.seg !== 'main') return Infinity;
     const L = this.track.mainLen;
     const lead = t.dir > 0 ? t.s : mod(t.s - t.length, L);
     const head = this.s, tail = mod(this.s - this.length, L);
@@ -10422,8 +10829,15 @@ class ViaTrain {
     return Math.min(mod(lead - head, L), mod(lead - tail, L));
   }
 
+  /* While the bullet train is out the diesel stays in the yard: a single
+     line cannot carry a train at 260 km/h and one at 60 behind each other. */
+  get stabled() { return !!this.player.bullet; }
+
   fixedUpdate(h, ctx) {
     const t = this.player, L = this.track.mainLen;
+    const stabled = this.stabled;
+    if (stabled !== this._stabled) { this._stabled = stabled; this.group.visible = !stabled; if (stabled) this.speed = 0; }
+    if (stabled) return;
     let want = this.vmax;
     if (t.seg === 'main') {
       const pHead = t.dir > 0 ? t.s : mod(t.s - t.length, L), pTail = t.dir > 0 ? mod(t.s - t.length, L) : t.s;
@@ -11044,18 +11458,23 @@ class Play {
 
   _tickGates(dt, ctx) {
     const t = this.ctx.vehicle;
-    let limit = t.maxSpeed || CFG.maxSpeed;
+    const VMAX = t.maxSpeed || CFG.maxSpeed, BR = t.brakeRate || 1.5;
+    let limit = VMAX;
+    /* How far ahead a signal has to be seen is the distance the brakes need
+       from line speed: 240 m for the steam engine, well over a kilometre for
+       the bullet train. */
+    const ARM = Math.max(240, VMAX * VMAX / (2 * BR) + 90);
     let nearest = null, nd = Infinity;
     for (const g of this.gates) {
       const d = this._gateDistance(g);
-      if (d < 240 && !g.open && g.armed) {
+      if (d < ARM && !g.open && g.armed) {
         if (d < nd) { nd = d; nearest = g; }
       }
       // re-arm a gate once it is well behind
-      if (g.open && this._gateDistance(g) > 400) { g.open = false; g.q = null; g.tries = 0; g.lmat.color.setHex(0xC4392F); }
+      if (g.open && this._gateDistance(g) > ARM + 160) { g.open = false; g.q = null; g.tries = 0; g.lmat.color.setHex(0xC4392F); }
     }
     if (nearest) {
-      if (!this.quizGate && nd < 120) {
+      if (!this.quizGate && nd < Math.max(120, ARM * 0.5)) {
         this.quizGate = nearest;
         /* Alternate the two kinds rather than picking at random, so a child
            who is better at one does not get a run of the other. */
@@ -11074,11 +11493,11 @@ class Play {
          is more than the train has — so a fast approach simply ran through the
          signal and the sum vanished unanswered. This is the distance a constant
          1.5 m/s² brake actually needs. */
-      limit = Math.min(limit, Math.sqrt(2 * 1.5 * Math.max(0, nd - 5)));
+      limit = Math.min(limit, Math.sqrt(2 * BR * Math.max(0, nd - 5)));
     }
     if (this.quizGate) {
       const d = this._gateDistance(this.quizGate);
-      if (d === Infinity || d > 320) { this._closeQuiz(); }
+      if (d === Infinity || d > ARM + 80) { this._closeQuiz(); }
     }
     this._gateLimit = limit;
 
@@ -11108,7 +11527,7 @@ class Play {
     /* The diesel. The player is held short of it the way they are held short
        of sheep — and it holds short of them in turn. */
     const via = this.mode === 'rail' && ctx.has('via') ? ctx.get('via') : null;
-    if (via) {
+    if (via && !via.stabled) {
       const gap = via.gapAhead(t);
       if (gap < 170) {
         limit = Math.min(limit, Math.max(0, (gap - 28) * 0.14));
@@ -11121,7 +11540,8 @@ class Play {
     const tgt = this.target;
     if (tgt) {
       const d = this._targetDistance();
-      if (d < 110) limit = Math.min(limit, Math.max(0.9, (d - 8) * 0.075 + 0.9));
+      const APPR = Math.max(110, VMAX * VMAX / (2 * BR) - 100);
+      if (d < APPR) limit = Math.min(limit, Math.max(0.9, (d - 8) * 0.075 + 0.9), Math.sqrt(2 * BR * Math.max(0, d - 8)) + 0.9);
       if (d < 14) limit = Math.min(limit, 1.1);
     }
     t.speedLimit = limit;
@@ -11131,8 +11551,9 @@ class Play {
      zone is measured from the train along its direction of travel, so setting
      back through one is warned about just the same. */
   _dangerLimit() {
-    const t = this.train;
-    let lim = CFG.maxSpeed, warn = null;
+    const t = this.train, VMAX = t.maxSpeed || CFG.maxSpeed, BR = t.brakeRate || 1.5;
+    const FAR = Math.max(150, (VMAX * VMAX - 81) / (2 * BR) + 60);
+    let lim = VMAX, warn = null;
     for (const z of this.track.danger || []) {
       if (z.segId !== t.seg) continue;
       const len = z.s1 - z.s0;
@@ -11140,10 +11561,11 @@ class Play {
       if (t.seg === 'main') {
         const L = this.track.mainLen;
         d = t.dir >= 0 ? mod(z.s0 - t.s, L) : mod(t.s - z.s1, L);
-        if (d > L - 260) d -= L;
+        if (d > L - FAR - 110) d -= L;
       } else d = t.dir >= 0 ? z.s0 - t.s : t.s - z.s1;
-      if (d < 150 && d > -len - 30) {
-        lim = Math.min(lim, d > 60 ? lerp(9, CFG.maxSpeed, smoothstep(60, 150, d)) : 9);
+      if (d < FAR && d > -len - 30) {
+        // a braking curve down to the crawl, from wherever the engine's brakes need to start
+        lim = Math.min(lim, d > 60 ? Math.sqrt(81 + 2 * BR * (d - 60)) : 9);
         if (d > -12) warn = z;
       }
     }
@@ -11163,15 +11585,17 @@ class Play {
     const t = this.train, seg = this.track.segs[t.seg];
     if (!seg) return CFG.maxSpeed;
     const n = seg.pts.length, st = seg.step;
-    const A_LAT = 2.4, BRAKE = 1.5, LOOK = 220;
+    const VMAX = t.maxSpeed || CFG.maxSpeed;
+    const A_LAT = t.latAccel || 2.4, BRAKE = t.brakeRate || 1.5;
+    const LOOK = Math.max(220, VMAX * VMAX / (2 * BRAKE) + 60);
     const i0 = Math.round(t.s / st);
-    let lim = CFG.maxSpeed;
+    let lim = VMAX;
     for (let k = 0; k * st <= LOOK; k += 2) {
       let i = i0 + t.dir * k;
       if (seg.closed) i = mod(i, n); else if (i < 0 || i >= n) break;
       const R = 1 / Math.max(1e-6, seg.pts[i].curv || 0);
       const vc = Math.sqrt(A_LAT * R);
-      if (vc >= CFG.maxSpeed) continue;
+      if (vc >= VMAX) continue;
       const d = Math.max(0, k * st - 6);
       lim = Math.min(lim, Math.sqrt(vc * vc + 2 * BRAKE * d));
     }
@@ -11472,7 +11896,7 @@ function drawVehicle(cv, type, cfg) {
   g.clearRect(0, 0, W, H);
   const body = cfg.body, trim = cfg.trim, dark = '#2B333C', steel = '#6E7583';
 
-  const t = type === 'loco' ? { len: cfg.engine === 'diesel' ? DIESEL.len : LOCO.len } : CAR_TYPES[type];
+  const t = type === 'loco' ? { len: cfg.engine === 'diesel' ? DIESEL.len : cfg.engine === 'bullet' ? BULLET.power : LOCO.len } : CAR_TYPES[type] || BULLET_TYPES[type];
   const scale = (W - 8) / (t.len + 0.6);
   const railY = H - 10;
   const px = v => W / 2 + v * scale;
@@ -11502,6 +11926,7 @@ function drawVehicle(cv, type, cfg) {
   g.fillStyle = '#8A7B63';
   g.fillRect(0, railY, W, 3);
 
+  if (BULLET_TYPES[type] || (type === 'loco' && cfg.engine === 'bullet')) { drawBulletCar(g, BULLET_TYPES[type] ? type : 'bpower', px, py, scale); return; }
   if (type === 'loco' && cfg.engine === 'diesel') {
     const HL = DIESEL.len / 2;
     rr(px(-HL), py(1.3), DIESEL.len * scale, 0.35 * scale, 1, dark);                 // frame
@@ -11743,13 +12168,15 @@ class UI {
     this.ctx.setVehicle(mode === 'sky' ? 'skyway' : mode === 'funi' ? 'funicular' : 'train');
     let from = this.play._startedAtBy[mode];
     if (def.stops[0] === from) from = this.play._altStart(mode, from);
+    // the bullet train starts from the main line, whatever the last engine did
+    if (mode === 'rail' && this.train.bullet && this.play._stationOf(from, 'rail').seg !== 'main') from = def.stops[0] === 'town' ? 'works' : 'town';
     this.play._startedAtBy[mode] = from;
     this.ctx.vehicle.resetTo(this.play._stationOf(from, mode), 0);
     const m = this.play.start(id);
     this.save.lastMission = m.id;
     this.play._legStart = null;
     this.ctx.get('cam').setMode(CAM_CHASE);
-    setIcon($('#ribMe svg'), mode === 'sky' ? 'i-gondola' : mode === 'funi' ? 'i-funi' : 'i-loco');
+    setIcon($('#ribMe svg'), mode === 'sky' ? 'i-gondola' : mode === 'funi' ? 'i-funi' : this.train.bullet ? 'i-bullet' : 'i-loco');
     $('#hud').classList.toggle('sky', mode === 'sky');
     $('#depot').classList.add('out');
     setTimeout(() => $('#depot').classList.add('hide'), 460);
@@ -11940,7 +12367,7 @@ class UI {
       this.train.cfg.engine = e;
       this.train.rebuild();
       this.audio.resume();
-      if (e === 'diesel') this.audio.horn(); else this.audio.whistle();
+      if (e === 'bullet') this.audio.klaxon(); else if (e === 'diesel') this.audio.horn(); else this.audio.whistle();
       this._syncEngine();
       this.renderConsist();
       this.persist();
@@ -11999,7 +12426,11 @@ class UI {
   }
 
   _syncEngine() {
-    for (const b of $$('#engineSeg button')) b.setAttribute('aria-pressed', String(b.dataset.e === (this.train.cfg.engine || 'steam')));
+    const eng = this.train.cfg.engine || 'steam';
+    for (const b of $$('#engineSeg button')) b.setAttribute('aria-pressed', String(b.dataset.e === eng));
+    $('#engineNote').textContent = eng === 'bullet'
+      ? 'The Alto: a fixed set of eight — two power cars and six double-deck coaches. It runs under the wires on the main line and goes slowly on the branches.'
+      : eng === 'diesel' ? 'The diesel carries its own fuel, so it leaves the tender behind.' : '';
   }
 
   renderDepot() {
@@ -12051,7 +12482,7 @@ class UI {
       const wrap = document.createElement('div');
       wrap.className = 'unit';
       const cv = document.createElement('canvas');
-      const t = type === 'loco' ? { len: this.train.cfg.engine === 'diesel' ? DIESEL.len : LOCO.len } : CAR_TYPES[type];
+      const t = type === 'loco' ? { len: this.train.cfg.engine === 'diesel' ? DIESEL.len : LOCO.len } : CAR_TYPES[type] || BULLET_TYPES[type];
       cv.height = 140; cv.width = Math.round(140 * (t.len + 0.6) / 6.6);
       cv.style.height = '70px'; cv.style.width = (cv.width / 2) + 'px';
       drawVehicle(cv, type, this.train.cfg);
@@ -12093,6 +12524,7 @@ class UI {
       }
       host.appendChild(wrap);
     };
+    if (this.train.cfg.engine === 'bullet') { for (const t2 of BULLET_CONSIST) add(t2, null); return; }
     add('loco', null);
     const dieselNow = this.train.cfg.engine === 'diesel';
     this.train.cfg.cars.forEach((c, i) => { if (!(dieselNow && c === 'tender')) add(c, i); });
