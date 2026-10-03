@@ -7791,11 +7791,15 @@ function bulletBogie(mb, z, frameC) {
   for (const x of [-1.47, 1.47]) mb.box(x, 0.98, z, 0.07, 0.62, 2 * a + 1.5, frameC, 0);  // the winter skirt
 }
 
+/* a darker shade of a livery colour, for doors, grilles and gangways */
+function bulletShade(hex, f) { const c = new THREE.Color(hex); c.multiplyScalar(f); return c; }
+
 /* one car of the set. opts.rearBogie draws a second bogie at the rear pivot,
-   for the trailer that meets the trailing power car. */
+   for the trailer that meets the trailing power car; opts.body and opts.trim
+   are the depot's livery colours — the body, and the roof line. */
 function buildBulletCar(type, opts = {}) {
   const mb = new MB(), glow = new MB(), marks = [];
-  const green = new THREE.Color(BULLET.green), dark = new THREE.Color(BULLET.dark), roofC = new THREE.Color(BULLET.roofC);
+  const green = new THREE.Color(opts.body || BULLET.green), dark = bulletShade(opts.body || BULLET.green, 0.55), roofC = new THREE.Color(opts.trim || BULLET.roofC);
   const frameC = new THREE.Color(BULLET.frame), win = new THREE.Color(BULLET.win), red = new THREE.Color('#C8102E');
   const L = BULLET_TYPES[type].len, power = type === 'bpower';
   const W = BULLET.width / 2, F = BULLET.floor, R = BULLET.roof;
@@ -7894,9 +7898,10 @@ function bulletWordmarkTexture() {
 }
 
 /* the depot's side view of one car; px/py map metres along and up to the canvas */
-function drawBulletCar(g, type, px0, py, scale, flip) {
+function drawBulletCar(g, type, px0, py, scale, flip, cfg) {
   const px = flip ? v => px0(-v) : px0;
-  const green = BULLET.green, dark = BULLET.dark, frame = BULLET.frame, win = BULLET.win;
+  const green = (cfg && cfg.body) || BULLET.green, roofC = (cfg && cfg.trim) || BULLET.roofC, frame = BULLET.frame, win = BULLET.win;
+  const dark = '#' + bulletShade(green, 0.55).getHexString();
   const L = BULLET_TYPES[type].len, HL = L / 2, F = BULLET.floor, R = BULLET.roof;
   // x is px(left edge in metres); mirrored, that is the right edge
   const rr = (x, y, w, h, r, fill) => { if (flip) x -= w; g.beginPath(); if (g.roundRect) g.roundRect(x, y, w, h, r); else g.rect(x, y, w, h); g.fillStyle = fill; g.fill(); };
@@ -7917,7 +7922,7 @@ function drawBulletCar(g, type, px0, py, scale, flip) {
     // plough, grilles, pantograph
     g.fillStyle = frame; g.beginPath(); g.moveTo(px(HL - 2.6), py(F + 0.3)); g.lineTo(px(HL - 0.3), py(F + 0.3)); g.lineTo(px(HL - 0.3), py(F - 0.7)); g.closePath(); g.fill();
     for (let z = -HL + 1.6; z < HL - BULLET.nose - 1.2; z += 2.4) rr(px(z - 0.8), py(F + 2.3), 1.6 * scale, 0.5 * scale, 1, dark);
-    rr(px(-HL + 1.2), py(R + 0.12), (L - BULLET.nose - 1.6) * scale, 0.1 * scale, 1, BULLET.roofC);
+    rr(px(-HL + 1.2), py(R + 0.12), (L - BULLET.nose - 1.6) * scale, 0.1 * scale, 1, roofC);
     g.strokeStyle = frame; g.lineWidth = Math.max(1.5, 0.09 * scale);
     g.beginPath(); g.moveTo(px(-HL + 5.0), py(R + 0.3)); g.lineTo(px(-HL + 6.5), py(R + 1.1)); g.lineTo(px(-HL + 4.4), py(R + 1.85)); g.stroke();
     rr(px(-HL + 3.6), py(R + 1.9), 1.5 * scale, 0.08 * scale, 1, frame);
@@ -7927,7 +7932,7 @@ function drawBulletCar(g, type, px0, py, scale, flip) {
   } else {
     rr(px(-HL + 0.3), py(F + 0.1), (L - 0.6) * scale, 0.2 * scale, 1, frame);
     rr(px(-HL), py(R), L * scale, (R - F) * scale, 4, green);
-    rr(px(-HL + 0.8), py(R + 0.12), (L - 1.6) * scale, 0.1 * scale, 1, BULLET.roofC);
+    rr(px(-HL + 0.8), py(R + 0.12), (L - 1.6) * scale, 0.1 * scale, 1, roofC);
     for (const [y0, y1] of [[F + 0.5, F + 1.3], [F + 1.95, F + 2.5]]) {
       rr(px(-HL + 1.6), py(y1), (L - 3.2) * scale, (y1 - y0) * scale, 1, win);
       g.fillStyle = green;
@@ -8425,7 +8430,7 @@ class Train {
     const n = BULLET_CONSIST.length;
     BULLET_CONSIST.forEach((type, i) => {
       const rear = i === n - 1, last = type === 'bend' && i > 1;
-      const b = buildBulletCar(type, { rearBogie: last });
+      const b = buildBulletCar(type, { rearBogie: last, body: this.cfg.body, trim: this.cfg.trim });
       const g = new THREE.Group(), inner = new THREE.Group();
       if (rear) inner.rotation.y = Math.PI;
       const mesh = new THREE.Mesh(b.mb.geometry(), MAT.solid);
@@ -11944,7 +11949,7 @@ function drawVehicle(cv, type, cfg) {
   g.fillStyle = '#8A7B63';
   g.fillRect(0, railY, W, 3);
 
-  if (BULLET_TYPES[type] || (type === 'loco' && cfg.engine === 'bullet')) { drawBulletCar(g, BULLET_TYPES[type] ? type : 'bpower', px, py, scale, (type === 'loco' || type === 'bpower') && !cfg.bulletTail); return; }
+  if (BULLET_TYPES[type] || (type === 'loco' && cfg.engine === 'bullet')) { drawBulletCar(g, BULLET_TYPES[type] ? type : 'bpower', px, py, scale, (type === 'loco' || type === 'bpower') && !cfg.bulletTail, cfg); return; }
   if (type === 'loco' && cfg.engine === 'diesel') {
     const HL = DIESEL.len / 2;
     rr(px(-HL), py(1.3), DIESEL.len * scale, 0.35 * scale, 1, dark);                 // frame
