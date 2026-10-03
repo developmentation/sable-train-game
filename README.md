@@ -16,12 +16,13 @@ and the **funicular**, a rack-and-cable incline up the face of the mountain with
 pass each other half way. A silver-and-blue diesel works the main line on its own, and both
 trains keep clear of each other; you can also pick the diesel as your own engine in the depot.
 
-And a **bullet train**: an eight-car high-speed set in the deep green of Alto, the Toronto–Québec
-line Canada is building, modelled on the Alstom Avelia Horizon that is its likeliest train — two
+And a **bullet train**, the *Calgary–Edmonton*: an eight-car high-speed set in deep green with a
+maple leaf on every flank, modelled on the Alstom Avelia Horizon that Canada's high-speed plans are
+most likely to receive — two
 power cars with long tapered noses, six double-deck coaches on shared Jacobs bogies, pantographs
 up to a catenary strung the whole way round the main loop. It is a different kind of driving: the
 air is what holds it back, the signals come into view a kilometre and a half out because that is
-what the brakes need from 260 km/h, and every bend has its own limit, read off the line ahead.
+what the brakes need from 320 km/h, and every bend has its own limit, read off the line ahead.
 
 Every line is laid to railway rules: arcs of at least 65 m radius joined by straights and
 reverse curves, a speed limit on every bend, both rails of every branch level with the main line
@@ -57,7 +58,7 @@ no build step. Progress (stars, deliveries, your train) is saved in the browser.
 | ![The diesel on the main line](docs/screenshots/17-diesel.png) | ![The depot: the Skyway rides](docs/screenshots/18-depot-skyway.png) |
 | *The diesel, held short of the player's train at Bramble Town* | *The depot's Skyway tab: six rides, unlocked one at a time* |
 | ![The bullet train at speed on the main line](docs/screenshots/19-bullet-train.png) | ![The bullet train from above, under the wires](docs/screenshots/20-bullet-under-the-wires.png) |
-| *The Alto at 160 km/h: eight cars, two pantographs on the wire* | *Six double-deck coaches on shared bogies, the masts every fifty metres* |
+| *The Calgary–Edmonton at 160 km/h: eight cars, two pantographs on the wire* | *Six double-deck coaches on shared bogies, the masts every fifty metres* |
 
 ## How to play
 
@@ -114,5 +115,5 @@ The bullet train is built in code like everything else, to published dimensions 
 rather than from a downloaded model: Alto's own renderings and route brief
 ([altotrain.ca](https://www.altotrain.ca/)), Alstom's Avelia Horizon / TGV M (power car 22.15 m,
 end trailer 21.8 m, intermediate trailers 18.7 m, 2.9 m wide, 320 km/h, articulated on Jacobs
-bogies, two pantographs per power car) and the Euroduplex it descends from. The livery — deep
-green, white wordmark, red maple leaf — is Alto's; the maple leaf is drawn by hand.
+bogies, two pantographs per power car) and the Euroduplex it descends from. The deep green, white
+wordmark and red maple leaf follow the Alto renderings; the leaf is drawn by hand.
