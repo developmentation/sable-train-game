@@ -7765,7 +7765,8 @@ function bulletBody(mb, L, col, nose) {
     const flip = n.z * dirZ < 0;
     for (let i = 0; i < ring.length; i++) {
       const j = (i + 1) % ring.length;
-      if (flip) mb.quad(ctr, ring[i], ring[j], ring[j], col); else mb.quad(ctr, ring[j], ring[i], ring[i], col);
+      // the natural order faces the way n points; use it when that is the way this end faces
+      if (flip) mb.quad(ctr, ring[j], ring[i], ring[i], col); else mb.quad(ctr, ring[i], ring[j], ring[j], col);
     }
   };
   cap(0, -1); cap(N, 1);
