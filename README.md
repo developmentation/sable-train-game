@@ -32,6 +32,14 @@ down, hold left or right to bank round. The plane will not fly into a hill — t
 it up — and it only comes all the way down over a strip it is lined up with, where it lands itself
 and rolls to a stop.
 
+And **boats**: a tugboat, a sailing boat and a fishing boat, six harbours round the bay including
+two on islands, and a sea that moves. Swell and chop lift the hull and set it rolling, a current
+sets the boat sideways whenever the engine is not fighting it (foam flecks drift on it so you can
+see which way it runs, and the river pushes hard out of its mouth), whitecaps run along the crests
+and foam streams down the wake. The sea gets up when you are out on it and settles again when you
+are back on land. Shallow water stops the boat and asks for astern; it cannot run aground. Three
+more boats work the bay on their own, and channel buoys bob at every harbour mouth.
+
 Every line is laid to railway rules: arcs of at least 65 m radius joined by straights and
 reverse curves, a speed limit on every bend, both rails of every branch level with the main line
 through the whole turnout, vertical curves of at least 200 m radius so no gradient ever changes in
@@ -71,6 +79,8 @@ no build step. Progress (stars, deliveries, your train) is saved in the browser.
 | *The biplane climbing out of Meadow Field* | *Cloverfield Strip: hangar, apron, windsock and the Skyway going by* |
 | ![Glacier Col, a new Skyway station](docs/screenshots/23-glacier-col.png) | ![Wall Foot, the bottom of the west wall incline](docs/screenshots/24-wall-foot.png) |
 | *Glacier Col: three cables meet at one deck, high on the massif* | *Wall Foot: the bottom station of the west wall incline* |
+| ![The fishing boat under way](docs/screenshots/25-fishing-boat.png) | ![Seal Rock from above](docs/screenshots/26-seal-rock.png) |
+| *The fishing boat heading out, the wake streaming behind* | *Seal Rock: its beacon, its jetty and the whitecaps round it* |
 
 ## How to play
 
@@ -92,10 +102,13 @@ no build step. Progress (stars, deliveries, your train) is saved in the browser.
 6. **Planes** — the Planes tab has the prop plane and the biplane and seven flights between the
    five airstrips. Lever up to take off and climb, lever down to descend, hold ‹ or › to bank.
    Line up with the strip you are flying to, bring the lever right down, and it lands itself.
-7. **Stations** — the train slows itself at the platform. Deliver the cargo, collect the stars,
+7. **Boats** — the Boats tab has the tug, the sailing boat and the fishing boat and eight trips
+   between the six harbours. The lever is the engine, hold ‹ or › for the rudder, set back to go
+   astern. Come alongside the quay and stop, and the passengers step off.
+8. **Stations** — the train slows itself at the platform. Deliver the cargo, collect the stars,
    then pick the next delivery at the depot. Some deliveries need two stops (load milk at the
    farm, take it to town; apples from the orchard to the mill; gold from the gulch to the castle).
-8. **My train** — choose steam, diesel or the bullet train, spend the stars on wagons (coal hopper,
+9. **My train** — choose steam, diesel or the bullet train, spend the stars on wagons (coal hopper,
    box, tank, milk, log flat, coach, brake van), name your engine and repaint the body and trim.
    The bullet train is a fixed set of eight: it starts from the main line, keeps to the wires, and
    creeps round the branches if you take it down one.
