@@ -10,10 +10,11 @@ Ford, Windmill Hill, Greystone Quarry, Ravenstone Castle, Nugget Gulch, Honeypot
 Point, Bluebell Wood and Tinker's Yard. Seven branch lines leave the main loop, and on the ledges
 under the crags there are DANGER boards, and rocks that come down.
 
-Two more ways up the mountain, each its own game from the depot: the **Skyway**, a cable car
-network strung across the crags of the massif with switching stations where you pick a cable,
-and the **funicular**, a rack-and-cable incline up the face of the mountain with two cars that
-pass each other half way. A silver-and-blue diesel works the main line on its own, and both
+Two more ways up the mountain, each its own game from the depot: the **Skyway**, sixteen cable car
+stations strung across the crags of the massif, over the west wall and down to the farm, with
+switching stations where you pick a cable, and the **funicular**, six rack-and-cable inclines up the
+faces of the mountains, each with two cars that pass each other half way — the one you are driving,
+while the others work on their own. A silver-and-blue diesel works the main line on its own, and both
 trains keep clear of each other; you can also pick the diesel as your own engine in the depot.
 
 And a **bullet train**, the *Calgary–Edmonton*: an eight-car high-speed set in deep green with a
@@ -23,6 +24,13 @@ power cars with long tapered noses, six double-deck coaches on shared Jacobs bog
 up to a catenary strung the whole way round the main loop. It is a different kind of driving: the
 air is what holds it back, the signals come into view a kilometre and a half out because that is
 what the brakes need from 320 km/h, and every bend has its own limit, read off the line ahead.
+
+And **planes**: a yellow high-wing prop plane and a red biplane, and five grass airstrips on the
+valley floor with a hangar, a windsock and a name board each. Flying is the arcade kind a child can
+do with one lever and two buttons: push the lever up to take off and climb, bring it down to come
+down, hold left or right to bank round. The plane will not fly into a hill — the ground ahead pushes
+it up — and it only comes all the way down over a strip it is lined up with, where it lands itself
+and rolls to a stop.
 
 Every line is laid to railway rules: arcs of at least 65 m radius joined by straights and
 reverse curves, a speed limit on every bend, both rails of every branch level with the main line
@@ -59,6 +67,10 @@ no build step. Progress (stars, deliveries, your train) is saved in the browser.
 | *The diesel, held short of the player's train at Bramble Town* | *The depot's Skyway tab: six rides, unlocked one at a time* |
 | ![The bullet train at speed on the main line](docs/screenshots/19-bullet-train.png) | ![The bullet train from above, under the wires](docs/screenshots/20-bullet-under-the-wires.png) |
 | *The Calgary–Edmonton at 160 km/h: eight cars, two pantographs on the wire* | *Six double-deck coaches on shared bogies, the masts every fifty metres* |
+| ![The biplane over the valley](docs/screenshots/21-biplane.png) | ![Cloverfield Strip](docs/screenshots/22-airstrip.png) |
+| *The biplane climbing out of Meadow Field* | *Cloverfield Strip: hangar, apron, windsock and the Skyway going by* |
+| ![Glacier Col, a new Skyway station](docs/screenshots/23-glacier-col.png) | ![Wall Foot, the bottom of the west wall incline](docs/screenshots/24-wall-foot.png) |
+| *Glacier Col: three cables meet at one deck, high on the massif* | *Wall Foot: the bottom station of the west wall incline* |
 
 ## How to play
 
@@ -75,11 +87,15 @@ no build step. Progress (stars, deliveries, your train) is saved in the browser.
 5. **Skyway and funicular** — pick a ride from their own tabs in the depot. The same lever drives
    the cabin or the car, the same left and right buttons pick a cable at a switching station,
    and set back turns you round at the end of a line. Passengers wait on the decks and ride with
-   you; every switching station has a signal with a sum on it.
-6. **Stations** — the train slows itself at the platform. Deliver the cargo, collect the stars,
+   you; every switching station has a signal with a sum on it. Sixteen Skyway stations and six
+   inclines, with a ride to every one of them.
+6. **Planes** — the Planes tab has the prop plane and the biplane and seven flights between the
+   five airstrips. Lever up to take off and climb, lever down to descend, hold ‹ or › to bank.
+   Line up with the strip you are flying to, bring the lever right down, and it lands itself.
+7. **Stations** — the train slows itself at the platform. Deliver the cargo, collect the stars,
    then pick the next delivery at the depot. Some deliveries need two stops (load milk at the
    farm, take it to town; apples from the orchard to the mill; gold from the gulch to the castle).
-7. **My train** — choose steam, diesel or the bullet train, spend the stars on wagons (coal hopper,
+8. **My train** — choose steam, diesel or the bullet train, spend the stars on wagons (coal hopper,
    box, tank, milk, log flat, coach, brake van), name your engine and repaint the body and trim.
    The bullet train is a fixed set of eight: it starts from the main line, keeps to the wires, and
    creeps round the branches if you take it down one.
